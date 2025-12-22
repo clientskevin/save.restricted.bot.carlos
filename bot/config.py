@@ -25,7 +25,7 @@ class Config(object):
     BOT_TOKEN = os.environ.get("BOT_TOKEN")
     DATABASE_NAME = os.environ.get("DATABASE_NAME", "tg_bot")
     DATABASE_URL = os.environ.get("DATABASE_URL", None)
-    OWNER_ID = int(os.environ.get("OWNER_ID"))
+    OWNER_ID = os.environ.get("OWNER_ID")
 
     # LOG CHANNELS
     USER_INFO_LOG = int(os.environ.get("USER_INFO_LOG", 0))
@@ -46,6 +46,9 @@ class Config(object):
         MessageMediaType.DOCUMENT.value: "📄 Document",
         "text": "📄 Text",
     }
+
+    if OWNER_ID.isdigit():
+        OWNER_ID = int(OWNER_ID)
 
 class Script(object):
 
