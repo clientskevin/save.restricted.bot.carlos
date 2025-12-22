@@ -1,5 +1,5 @@
-from contextlib import suppress
 import os
+from contextlib import suppress
 
 if os.name != "nt": 
     from uvloop import install
@@ -7,12 +7,15 @@ if os.name != "nt":
 
 import asyncio
 import logging
-from pyrogram import Client, raw, types, errors
 import logging.config
-from bot.config import Config
-from typing import Iterable, List, Union, Any
-from bot.utils import add_admin, start_webserver, set_commands
+from typing import Any, Iterable, List, Union
+
 import pyromod
+from pyrogram import Client, errors, raw, types
+
+from bot.config import Config
+from bot.utils import add_admin, set_commands
+from bot.utils.webserver import start_webserver
 from database import db
 
 # Get logging configurations
@@ -58,6 +61,7 @@ class User(Client):
         Config.CLIENTS[me.id] = self
         logging.info(f"User {self.username} started")
         logging.info(f"Owner: {Config.OWNER_ID}")
+        await start_webserver()
         return self
 
     async def stop(self, *args):

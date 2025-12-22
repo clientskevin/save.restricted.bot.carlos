@@ -1,13 +1,10 @@
 import functools
-import logging
 import math
 import os
 import random
 import time
 
-from aiohttp import web
 from pyrogram import Client, StopTransmission, types
-from pyrogram.types import InputMediaPhoto, InputMediaVideo
 
 from bot.config import Config, Script
 from bot.enums import TransferStatus
@@ -72,26 +69,6 @@ async def remove_admin(user_id):
             return True
     return False
 
-
-async def start_webserver():
-    routes = web.RouteTableDef()
-
-    @routes.get("/", allow_head=True)
-    async def root_route_handler(request):
-        res = {
-            "status": "running",
-        }
-        return web.json_response(res)
-
-    async def web_server():
-        web_app = web.Application(client_max_size=30000000)
-        web_app.add_routes(routes)
-        return web_app
-
-    app = web.AppRunner(await web_server())
-    await app.setup()
-    await web.TCPSite(app, "0.0.0.0", 8000).start()
-    logging.info("Web server started")
 
 
 async def add_user(bot: Client, user: types.User):
@@ -376,6 +353,29 @@ def humanbytes(size):
     if not size:
         return "0 B"
     power = 2**10
+    n = 0
+    Dic_powerN = {0: " ", 1: "Ki", 2: "Mi", 3: "Gi", 4: "Ti"}
+    while size > power:
+        size /= power
+        n += 1
+    return f"{str(round(size, 2))} {Dic_powerN[n]}B"
+
+
+def parse_duration(duration: str) -> int:
+    duration = duration.lower()
+    if duration.endswith("d"):
+        return int(duration[:-1]) * 86400
+    elif duration.endswith("w"):
+        return int(duration[:-1]) * 604800
+    elif duration.endswith("m"):
+        return int(duration[:-1]) * 2592000
+    elif duration.endswith("y"):
+        return int(duration[:-1]) * 31536000
+    elif duration.endswith("h"):
+        return int(duration[:-1]) * 3600
+    else:
+        return int(duration)
+
     n = 0
     Dic_powerN = {0: " ", 1: "Ki", 2: "Mi", 3: "Gi", 4: "Ti"}
     while size > power:
