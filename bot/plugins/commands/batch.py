@@ -28,7 +28,7 @@ async def batch(bot: Client, message: Message):
 
 
     text = "📊 Batch\n\n"
-    text += "Forward the message link from the chat from where you'd like to batch-save messages.\n\n"
+    text += "Forward the first message link from the chat from where you'd like to batch-save messages.\n\n"
     text += "Example: \n1. https://t.me/c/2114152609/1\n\n"
     text += "\n\n/cancel to cancel ❌"
 
@@ -40,7 +40,7 @@ async def batch(bot: Client, message: Message):
     first_message = ask
 
     text = "Please send any one of the following:\n\n"
-    text += "1. Copy the message link and send it to me 📎\n"
+    text += "1. Copy the last message link and send it to me 📎\n"
     text += "Example: https://t.me/c/2114152609/10\n\n"
     text += "2. Send the number of messages you'd like to batch-save 🔢\n"
     text += "Example: 10"
@@ -60,7 +60,9 @@ async def batch(bot: Client, message: Message):
         await message.reply_text(text)
         return
 
-    if last_message.text.isdigit():
+    is_last_message_digit = last_message.text.isdigit()
+
+    if is_last_message_digit:
         last_parts = (
             first_parts[0],
             first_parts[1] + int(last_message.text) - 1,
@@ -76,7 +78,7 @@ async def batch(bot: Client, message: Message):
 
     first_chat_id, first_message_id, first_topic_id = first_parts
     last_chat_id, last_message_id, last_topic_id = last_parts
-    print(first_parts, last_parts)
+    
 
     if last_message_id < first_message_id:
         text = "⚠️ Last message should be older than the first message."
@@ -136,6 +138,9 @@ async def batch(bot: Client, message: Message):
 
         #     messages.append(message)
         #     messages = sorted(messages, key=lambda x: x.id)
+
+        if is_last_message_digit:
+            last_topic_id = last_message_id
 
         messages = []
         total_messages = list(range(first_topic_id, last_topic_id + 1))

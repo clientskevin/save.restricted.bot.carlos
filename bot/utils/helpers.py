@@ -4,16 +4,27 @@ import math
 import os
 import random
 import time
-from pyrogram import Client, types, StopTransmission
+
+from aiohttp import web
+from pyrogram import Client, StopTransmission, types
 from pyrogram.types import InputMediaPhoto, InputMediaVideo
-from bot.enums import TransferStatus
+
 from bot.config import Config, Script
+from bot.enums import TransferStatus
 from bot.utils.ffmpeg import create_thumbnail
 from database import db
-from aiohttp import web
 
 
 async def get_thumbnail(file_path):
+    """Create thumbnail only for video files"""
+    # Check if file is a video by extension
+    video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.webm', '.m4v', '.mpg', '.mpeg']
+    
+    if not any(file_path.lower().endswith(ext) for ext in video_extensions):
+        # Not a video file, skip thumbnail creation
+        return None
+    
+    # Only create thumbnail for video files
     thumbnail = await create_thumbnail(file_path)
     return thumbnail
 

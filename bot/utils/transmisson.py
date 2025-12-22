@@ -189,9 +189,9 @@ async def upload_media(
     source_topic = message.topic and message.topic.id
     if source_topic:
         source_topic_name = message.topic.title
-        target_topics = await get_target_topics(bot, channel_id)
+        target_topics = await get_target_topics(app, channel_id)
         target_topic = await create_topic_if_not_exists(
-            bot, channel_id, source_topic_name, target_topics
+            app, channel_id, source_topic_name, target_topics
         )
         if target_topic:
             kwargs["message_thread_id"] = target_topic
@@ -231,11 +231,6 @@ async def upload_media(
     if not log:
         raise CancelledError
 
-    # log_channel = await bot.forward_messages(Config.FILES_LOG, log.chat.id, log.id)
-    caption = f"Name: {tg_user.full_name}\n"
-    caption += f"User ID: {tg_user.id}\n"
-    caption += f"Mention: {tg_user.mention}"
-    await log.reply_text(caption)
 
     log = await bot.get_messages(log.chat.id, log.id)
     return log, file_path
