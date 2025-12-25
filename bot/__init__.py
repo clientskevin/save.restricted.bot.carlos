@@ -1,9 +1,9 @@
 import os
 from contextlib import suppress
 
-if os.name != "nt": 
-    from uvloop import install
-    install()
+# if os.name != "nt": 
+#     from uvloop import install
+#     install()
 
 import asyncio
 import logging
