@@ -218,7 +218,7 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
             failed += 1
             traceback.print_exc()
             await remove_transfer_from_queue(download_id)
-            await bot.floodwait_handler(bot.send_message, user_id, f"Error: {e}")
+            await bot.floodwait_handler(bot.send_message, user_id, f"Error: {e}: {message.link}")
             continue
 
         if is_transfer_cancelled(message.download_id):

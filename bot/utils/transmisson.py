@@ -164,7 +164,7 @@ async def upload_media(
 ):
     out = await bot.floodwait_handler(bot.send_message, user_id, "Starting upload...")
 
-    upload_instance = bot
+    upload_instance = app
     function = None
 
     tg_user = await bot.get_users(user_id)
