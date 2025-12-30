@@ -140,6 +140,7 @@ async def add_channel(bot: Client, message: CallbackQuery):
                         [[InlineKeyboardButton("🔙 Back", callback_data="channels")]]
                     ),
                 )
+            topic_id = int(topic_id)
 
     else:
         topic_id = None

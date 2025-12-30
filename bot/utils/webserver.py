@@ -43,7 +43,10 @@ async def start_webserver():
     
     # Get port from environment or use default
     port = int(os.environ.get("PORT", 8000))
-    await web.TCPSite(app, "0.0.0.0", port).start()
+    try:
+        await web.TCPSite(app, "0.0.0.0", port).start()
+    except:
+        pass
     
     logger.info(f"Web server started on port {port}")
     
