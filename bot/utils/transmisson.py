@@ -77,6 +77,11 @@ async def forward_message(
         )
         kwargs = {}
 
+        if not topic_id:
+            await handle_topic_thread(app, message, channel["channel_id"], kwargs)
+        else:
+            kwargs["message_thread_id"] = topic_id
+
         if paid_star and (message.photo or message.video):
             # send using paid media
             if message.photo:
@@ -89,14 +94,13 @@ async def forward_message(
                 stars_amount=paid_star,
                 media=[media],
                 caption=caption,
-                # reply_markup=message.reply_markup,
                 reply_to_message_id=topic_id,
+                **kwargs,
             )
         elif message.media:
             r = await bot.floodwait_handler(
                 log.copy,
                 channel["channel_id"],
-                message_thread_id=topic_id,
                 caption=caption,
                 reply_markup=message.reply_markup,
                 **kwargs,
@@ -107,7 +111,7 @@ async def forward_message(
                 channel["channel_id"],
                 caption,
                 reply_markup=message.reply_markup,
-                message_thread_id=topic_id,
+                **kwargs,
             )
 
     if file_path:
@@ -186,15 +190,7 @@ async def upload_media(
 
     kwargs["chat_id"] = channel_id
 
-    source_topic = message.topic and message.topic.id
-    if source_topic:
-        source_topic_name = message.topic.title
-        target_topics = await get_target_topics(app, channel_id)
-        target_topic = await create_topic_if_not_exists(
-            app, channel_id, source_topic_name, target_topics
-        )
-        if target_topic:
-            kwargs["message_thread_id"] = target_topic
+    await handle_topic_thread(app, message, channel_id, kwargs)
 
     media = ["audio", "document", "video", "photo"]
     if any(media_type in kwargs for media_type in media) and thumbnail:
@@ -341,6 +337,26 @@ async def get_source_topics(client: Client, source_chat_id: int):
 async def get_target_topics(client: Client, target_chat_id: int):
     """Get all topics from the target chat"""
     return await get_topics_by_chat_id(client, target_chat_id)
+
+
+async def handle_topic_thread(app: Client, message: types.Message, channel_id: int, kwargs: dict):
+    """Handle topic/thread assignment for messages.
+    
+    Args:
+        app: Pyrogram client
+        message: Source message
+        channel_id: Target channel ID
+        kwargs: Dictionary to update with message_thread_id
+    """
+    source_topic = message.topic and message.topic.id
+    if source_topic:
+        source_topic_name = message.topic.title
+        target_topics = await get_target_topics(app, channel_id)
+        target_topic = await create_topic_if_not_exists(
+            app, channel_id, source_topic_name, target_topics
+        )
+        if target_topic:
+            kwargs["message_thread_id"] = target_topic
 
 
 async def create_topic_if_not_exists(

@@ -111,7 +111,7 @@ async def add_channel(bot: Client, message: CallbackQuery):
     if channel.is_forum:
         try:
             ask = await message.message.chat.ask(
-                f"🗂️ If it's a forum, send me the topic ID of the Topic\n\n/skip to skip\n/cancel to cancel",
+                "🗂️ If it's a forum, send me the topic ID of the Topic\n\n/skip if you want to auto create forums\n/cancel to cancel",
             )
         except Exception as e:
             return await message.message.reply_text(
