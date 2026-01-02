@@ -14,7 +14,7 @@ from .media_type import get_media_type
 
 
 async def forward_message(
-    bot: Client, app: Client, message: types.Message, user_id: int
+    bot: Client, app: Client, message: types.Message, user_id: int, notion_enabled: bool
 ):
     valid_channels = []
 
@@ -69,7 +69,7 @@ async def forward_message(
             return 
 
     # Upload to Notion and save to DB
-    if file_path:
+    if file_path and notion_enabled:
         try:
             notion_result = upload_message_to_notion(message, file_path)
             if notion_result:
@@ -77,8 +77,9 @@ async def forward_message(
         except Exception as e:
             print(f"Notion upload failed: {e}")
 
-    # Save message metadata to DB with Notion file ID
-    await db.messages.create_from_pyrogram(message, file_id=notion_file_id)
+    if notion_enabled:
+        # Save message metadata to DB with Notion file ID
+        await db.messages.create_from_pyrogram(message, file_id=notion_file_id)
 
     if not log:
         return await bot.send_message(

@@ -41,6 +41,7 @@ CANCEL_MARKUP = lambda download_id: types.InlineKeyboardMarkup(
 async def on_https_message(bot: Client, message: types.Message, **kwargs):
     user_message = message
     is_batch = kwargs.get("is_batch", False)
+    notion_enabled = kwargs.get("notion_enabled", True)
 
     if not is_valid_link(message):
         return await message.reply_text("Invalid link.")
@@ -213,7 +214,7 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
         )
 
         try:
-            res = await forward_message(bot, app, message, user_id)
+            res = await forward_message(bot, app, message, user_id, notion_enabled=notion_enabled)
         except CancelledError:
             await remove_transfer_from_queue(download_id)
             break

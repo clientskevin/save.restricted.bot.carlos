@@ -9,9 +9,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-@Client.on_message(filters.command("batch") & filters.private & filters.incoming & filters.user(Config.OWNER_ID))
+@Client.on_message(filters.command(["batch", "nbatch"]) & filters.private & filters.incoming & filters.user(Config.OWNER_ID))
 async def batch(bot: Client, message: Message):
     user_id = message.from_user.id
+    cmd = message.command[0]
+
+    if cmd == "nbatch":
+        notion_enabled = True
+    else:
+        notion_enabled = False
 
     app = await get_user_client(user_id)
 
@@ -176,4 +182,4 @@ async def batch(bot: Client, message: Message):
     user_message.text = text
 
     logger.info(f"Batching {len(valid_messages)} messages")
-    await on_https_message(bot, user_message, is_batch=True)
+    await on_https_message(bot, user_message, is_batch=True, notion_enabled=notion_enabled)
