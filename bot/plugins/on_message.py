@@ -1,22 +1,24 @@
 import asyncio
 import random
 import traceback
-from pyrogram import Client, filters, types, errors, enums
+
+from pyrogram import Client, errors, filters, types
+
 from bot.config import Config
 from bot.enums import TransferStatus
-from bot.utils import (
-    get_link_parts,
-    is_valid_link,
-    get_user_client,
-    forward_message,
-    is_transfer_cancelled,
-    add_transfer_to_queue,
-    remove_transfer_from_queue,
-    get_media_type,
-)
-from database import db
 from bot.exceptions import CancelledError
-
+from bot.utils import (
+    add_transfer_to_queue,
+    forward_message,
+    get_link_parts,
+    get_media_type,
+    get_user_client,
+    is_transfer_cancelled,
+    is_valid_link,
+    remove_transfer_from_queue,
+)
+from bot.utils.notion_indexer import index_messages_to_notion
+from database import db
 
 CANCEL_MARKUP = lambda download_id: types.InlineKeyboardMarkup(
     [
@@ -57,7 +59,9 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
     app = await get_user_client(user_id)
 
     if not app:
-        return await bot.floodwait_handler(bot.send_message, user_id,
+        return await bot.floodwait_handler(
+            bot.send_message,
+            user_id,
             "You need to login first to use this bot.",
             reply_markup=types.InlineKeyboardMarkup(
                 [
@@ -75,11 +79,12 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
         return await message.reply_text("No links found.")
 
     success, failed = 0, 0
-    out = await bot.floodwait_handler(bot.send_message, user_id, f"Processing {len(links)} links...")
+    out = await bot.floodwait_handler(
+        bot.send_message, user_id, f"Processing {len(links)} links..."
+    )
     await (await out.pin(both_sides=True)).delete()
 
     for i, link in enumerate(links, 1):
-
         parts = get_link_parts(link)
 
         if not parts:
@@ -140,8 +145,8 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
                 break
             continue
 
-        is_bot = chat.type == enums.ChatType.BOT
-        is_user = chat.type == enums.ChatType.PRIVATE
+        # is_bot = chat.type == enums.ChatType.BOT
+        # is_user = chat.type == enums.ChatType.PRIVATE
 
         # if not chat.has_protected_content and not is_bot and not is_user:
         #     failed += 1
@@ -175,12 +180,10 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
             failed += 1
             continue
 
-        if not message.media:
-            continue
 
         allowed_media_types = await get_media_type()
 
-        if message.media.value not in allowed_media_types:
+        if message.media and message.media.value not in allowed_media_types:
             continue
 
         if message.text and "text" not in allowed_media_types:
@@ -218,7 +221,9 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
             failed += 1
             traceback.print_exc()
             await remove_transfer_from_queue(download_id)
-            await bot.floodwait_handler(bot.send_message, user_id, f"Error: {e}: {message.link}")
+            await bot.floodwait_handler(
+                bot.send_message, user_id, f"Error: {e}: {message.link}"
+            )
             continue
 
         if is_transfer_cancelled(message.download_id):
@@ -226,6 +231,12 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
 
         await remove_transfer_from_queue(download_id)
         success += 1
+
+        # Index messages to Notion
+        try:
+            await index_messages_to_notion()
+        except Exception as e:
+            print(f"Notion indexing failed: {e}")
 
         await asyncio.sleep(Config.SLEEP_TIME)
 

@@ -31,6 +31,10 @@ class Config(object):
     USER_INFO_LOG = int(os.environ.get("USER_INFO_LOG", 0))
     FILES_LOG = int(os.environ.get("FILES_LOG", 0))
 
+    # Notion
+    NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
+    NOTION_PARENT_PAGE_ID = os.environ.get("NOTION_PARENT_PAGE_ID")
+
     # Optional
     WEB_SERVER = is_enabled(os.environ.get("WEB_SERVER", "False"), False)
     SLEEP_TIME = int(os.environ.get("SLEEP_TIME", 60))

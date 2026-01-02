@@ -7,6 +7,7 @@ from bot.config import Config
 from bot.exceptions import CancelledError
 from bot.utils.ffmpeg import get_video_details
 from bot.utils.helpers import *
+from bot.utils.notion import upload_message_to_notion
 from database import db
 
 from .media_type import get_media_type
@@ -23,7 +24,7 @@ async def forward_message(
             continue
 
         try:
-            chat = await bot.get_chat(channel["channel_id"])
+            await bot.get_chat(channel["channel_id"])
         except Exception as e:
             await bot.floodwait_handler(
                 bot.send_message,
@@ -47,6 +48,7 @@ async def forward_message(
         )
 
     file_path = None
+    notion_file_id = None
 
     if message.text:
         log = await bot.send_message(
@@ -55,13 +57,28 @@ async def forward_message(
     else:
         file_path = await download_media(bot, user_id, message)
         if file_path:
-            log, file_path = await upload_media(
-                user_id, bot, app, file_path, Config.FILES_LOG, message
+            log, file_path = await upload_media(  # pyright: ignore[reportGeneralTypeIssues]
+                user_id,
+                bot,
+                app,
+                file_path,
+                channel_id=Config.FILES_LOG,
+                message=message,
             )
         else:
-            return await bot.send_message(
-                user_id, "No media found to forward the message."
-            )
+            return 
+
+    # Upload to Notion and save to DB
+    if file_path:
+        try:
+            notion_result = upload_message_to_notion(message, file_path)
+            if notion_result:
+                notion_file_id = notion_result.file_id
+        except Exception as e:
+            print(f"Notion upload failed: {e}")
+
+    # Save message metadata to DB with Notion file ID
+    await db.messages.create_from_pyrogram(message, file_id=notion_file_id)
 
     if not log:
         return await bot.send_message(
@@ -85,9 +102,9 @@ async def forward_message(
         if paid_star and (message.photo or message.video):
             # send using paid media
             if message.photo:
-                media = InputMediaPhoto(log.photo.file_id)
+                media = types.InputMediaPhoto(log.photo.file_id)
             elif message.video:
-                media = InputMediaVideo(log.video.file_id)
+                media = types.InputMediaVideo(log.video.file_id)
             await bot.floodwait_handler(
                 bot.send_paid_media,
                 chat_id=channel["channel_id"],
@@ -227,7 +244,6 @@ async def upload_media(
     if not log:
         raise CancelledError
 
-
     log = await bot.get_messages(log.chat.id, log.id)
     return log, file_path
 
@@ -339,9 +355,11 @@ async def get_target_topics(client: Client, target_chat_id: int):
     return await get_topics_by_chat_id(client, target_chat_id)
 
 
-async def handle_topic_thread(app: Client, message: types.Message, channel_id: int, kwargs: dict):
+async def handle_topic_thread(
+    app: Client, message: types.Message, channel_id: int, kwargs: dict
+):
     """Handle topic/thread assignment for messages.
-    
+
     Args:
         app: Pyrogram client
         message: Source message

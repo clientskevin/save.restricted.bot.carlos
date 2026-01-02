@@ -19,6 +19,10 @@ class Core:
         result = await self.col.update_one({"_id": _id}, {f"${tag}": query})
         return result.modified_count
 
+    async def update_one(self, filter_query, update_data, tag="set"):
+        result = await self.col.update_one(filter_query, {f"${tag}": update_data})
+        return result.modified_count
+
     async def delete(self, _id):
         result = await self.col.delete_one({"_id": _id})
         return result.deleted_count
@@ -41,6 +45,10 @@ class Core:
     async def filter_document(self, query):
         document = await self.col.find_one(query)
         return document
+
+    async def get_document(self, query):
+        """Alias for filter_document"""
+        return await self.filter_document(query)
 
     async def delete_many(self, query):
         result = await self.col.delete_many(query)
