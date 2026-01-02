@@ -56,11 +56,15 @@ class User(Client):
                 )
             return
 
+        if Config.NOTION_TOKEN and Config.NOTION_PARENT_PAGE_ID:
+            logging.info("Notion indexing enabled")
+
         me = await self.get_me()
         self.username = f"@{me.username}"
         Config.CLIENTS[me.id] = self
         logging.info(f"User {self.username} started")
         logging.info(f"Owner: {Config.OWNER_ID}")
+        
         await start_webserver()
         return self
 
