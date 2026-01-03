@@ -6,6 +6,7 @@ Author: Maria Kevin
 Description: Clean wrapper for Notion file upload API
 """
 
+import mimetypes
 import os
 from typing import TYPE_CHECKING, Optional
 
@@ -13,7 +14,6 @@ import requests
 from pydantic import BaseModel
 
 from bot.config import Config
-import mimetypes
 
 if TYPE_CHECKING:
     from pyrogram import types
@@ -108,7 +108,13 @@ def upload_file_to_notion(
         )
         
     except requests.RequestException as e:
-        raise NotionUploadError(f"Upload failed: {str(e)}") from e
+        error_msg = f"Upload failed: {str(e)}"
+        if hasattr(e, "response") and e.response is not None:
+            try:
+                error_msg += f"\nResponse: {e.response.text}"
+            except Exception:
+                pass
+        raise NotionUploadError(error_msg) from e
 
 
 def upload_message_to_notion(

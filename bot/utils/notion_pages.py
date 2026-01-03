@@ -15,6 +15,11 @@ from pydantic import BaseModel
 from bot.config import Config
 
 
+class NotionPageError(Exception):
+    """Custom exception for Notion page errors"""
+    pass
+
+
 class NotionBlock(BaseModel):
     """Notion block content"""
     type: str
@@ -57,13 +62,22 @@ class NotionPageCreator:
         if blocks:
             payload["children"] = blocks
         
-        response = requests.post(
-            f"{self.base_url}/pages",
-            headers=self.headers,
-            json=payload
-        )
-        response.raise_for_status()
-        return response.json()["id"]
+        try:
+            response = requests.post(
+                f"{self.base_url}/pages",
+                headers=self.headers,
+                json=payload
+            )
+            response.raise_for_status()
+            return response.json()["id"]
+        except requests.RequestException as e:
+            error_msg = f"Failed to create Notion page: {str(e)}"
+            if hasattr(e, "response") and e.response is not None:
+                try:
+                    error_msg += f"\nResponse: {e.response.text}"
+                except Exception:
+                    pass
+            raise NotionPageError(error_msg) from e
 
     def create_text_block(self, text: str) -> Dict:
         """Create text paragraph block"""
