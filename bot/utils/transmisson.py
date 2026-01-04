@@ -69,7 +69,15 @@ async def forward_message(
             return 
 
     # Upload to Notion and save to DB
-    if file_path and notion_enabled:
+    should_index_to_notion = notion_enabled
+    
+    if notion_enabled:
+        # Check if message already exists and determine if we should index to Notion
+        _, should_index_to_notion = await db.messages.get_or_update_from_pyrogram(
+            message, file_id=None
+        )
+    
+    if file_path and notion_enabled: # upload even if it already exists cause file expires after 30 days
         try:
             notion_result = upload_message_to_notion(message, file_path)
             if notion_result:
@@ -78,8 +86,8 @@ async def forward_message(
             print(f"Notion upload failed: {e}")
 
     if notion_enabled:
-        # Save message metadata to DB with Notion file ID
-        await db.messages.create_from_pyrogram(message, file_id=notion_file_id)
+        # Save or update message metadata to DB with Notion file ID
+        await db.messages.get_or_update_from_pyrogram(message, file_id=notion_file_id)
 
     if not log:
         return await bot.send_message(
