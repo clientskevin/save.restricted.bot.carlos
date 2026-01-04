@@ -76,7 +76,7 @@ async def index_messages_to_notion():
                 topic_id=msg.get("topic_id"),
                 created_at=msg.get("created_at")
             )
-            blocks.append(notion.create_text_block(header))
+            blocks.extend(notion.create_text_block(header))
             blocks.append(notion.create_divider())
             
             # Add media file first if exists (use appropriate block type)
@@ -88,7 +88,7 @@ async def index_messages_to_notion():
             
             # Add caption/text as quote after media (Telegram style)
             if msg.get("caption"):
-                blocks.append(notion.create_quote_block(msg["caption"]))
+                blocks.extend(notion.create_quote_block(msg["caption"]))
             
             # Add footer with metadata
             blocks.append(notion.create_divider())
@@ -97,7 +97,7 @@ async def index_messages_to_notion():
                 size=msg.get("size"),
                 media_title=msg.get("media_title")
             )
-            blocks.append(notion.create_callout_block(footer, "📊"))
+            blocks.extend(notion.create_callout_block(footer, "📊"))
             
             # Create smart title
             title = create_message_title(

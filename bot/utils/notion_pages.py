@@ -14,6 +14,29 @@ from pydantic import BaseModel
 
 from bot.config import Config
 
+# Notion API limits for text content in blocks
+NOTION_MAX_TEXT_LENGTH = 2000
+
+
+def split_text_chunks(text: str, max_length: int = NOTION_MAX_TEXT_LENGTH) -> List[str]:
+    """
+    Split text into chunks that respect Notion's character limit.
+    
+    Args:
+        text: Text to split
+        max_length: Maximum length per chunk (default: 2000)
+    
+    Returns:
+        List of text chunks, each <= max_length characters
+    """
+    if len(text) <= max_length:
+        return [text]
+    
+    chunks = []
+    for i in range(0, len(text), max_length):
+        chunks.append(text[i:i + max_length])
+    return chunks
+
 
 class NotionPageError(Exception):
     """Custom exception for Notion page errors"""
@@ -79,15 +102,19 @@ class NotionPageCreator:
                     pass
             raise NotionPageError(error_msg) from e
 
-    def create_text_block(self, text: str) -> Dict:
-        """Create text paragraph block"""
-        return {
-            "object": "block",
-            "type": "paragraph",
-            "paragraph": {
-                "rich_text": [{"text": {"content": text}}]
-            }
-        }
+    def create_text_block(self, text: str) -> List[Dict]:
+        """Create text paragraph block(s), automatically chunking if text exceeds limit"""
+        chunks = split_text_chunks(text)
+        blocks = []
+        for chunk in chunks:
+            blocks.append({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{"text": {"content": chunk}}]
+                }
+            })
+        return blocks
 
     def create_media_block(self, file_id: str, mime_type: str = "file", caption: str = "") -> Dict:
         """Create appropriate media block based on type (image, video, or file)"""
@@ -121,36 +148,48 @@ class NotionPageCreator:
         """Create file block from Notion file upload (legacy, use create_media_block)"""
         return self.create_media_block(file_id, "file", caption)
 
-    def create_callout_block(self, text: str, emoji: str = "ℹ️") -> Dict:
-        """Create callout block for metadata"""
-        return {
-            "object": "block",
-            "type": "callout",
-            "callout": {
-                "rich_text": [{"text": {"content": text}}],
-                "icon": {"emoji": emoji}
-            }
-        }
+    def create_callout_block(self, text: str, emoji: str = "ℹ️") -> List[Dict]:
+        """Create callout block(s) for metadata, automatically chunking if text exceeds limit"""
+        chunks = split_text_chunks(text)
+        blocks = []
+        for chunk in chunks:
+            blocks.append({
+                "object": "block",
+                "type": "callout",
+                "callout": {
+                    "rich_text": [{"text": {"content": chunk}}],
+                    "icon": {"emoji": emoji}
+                }
+            })
+        return blocks
 
     def create_divider(self) -> Dict:
         """Create a divider block"""
         return {"type": "divider", "divider": {}}
 
-    def create_heading(self, text: str, level: int = 3) -> Dict:
-        """Create heading block (level 1, 2, or 3)"""
+    def create_heading(self, text: str, level: int = 3) -> List[Dict]:
+        """Create heading block(s) (level 1, 2, or 3), automatically chunking if text exceeds limit"""
         heading_type = f"heading_{min(max(level, 1), 3)}"
-        return {
-            "type": heading_type,
-            heading_type: {
-                "rich_text": [{"text": {"content": text}}]
-            }
-        }
+        chunks = split_text_chunks(text)
+        blocks = []
+        for chunk in chunks:
+            blocks.append({
+                "type": heading_type,
+                heading_type: {
+                    "rich_text": [{"text": {"content": chunk}}]
+                }
+            })
+        return blocks
 
-    def create_quote_block(self, text: str) -> Dict:
-        """Create quote block for captions"""
-        return {
-            "type": "quote",
-            "quote": {
-                "rich_text": [{"text": {"content": text}}]
-            }
-        }
+    def create_quote_block(self, text: str) -> List[Dict]:
+        """Create quote block(s) for captions, automatically chunking if text exceeds limit"""
+        chunks = split_text_chunks(text)
+        blocks = []
+        for chunk in chunks:
+            blocks.append({
+                "type": "quote",
+                "quote": {
+                    "rich_text": [{"text": {"content": chunk}}]
+                }
+            })
+        return blocks
