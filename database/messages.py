@@ -234,3 +234,75 @@ class MessagesDB(Core):
             {"indexed": True, "notion_page_id": notion_page_id}
         )
 
+    async def delete_all_messages(self) -> int:
+        """
+        Delete all messages from the database.
+        
+        Returns:
+            Number of messages deleted
+        """
+        result = await self.collection.delete_many({})
+        return result.deleted_count
+
+    async def delete_by_chat_id(self, chat_id: int) -> int:
+        """
+        Delete all messages from a specific chat.
+        
+        Args:
+            chat_id: Telegram chat ID
+        
+        Returns:
+            Number of messages deleted
+        """
+        result = await self.collection.delete_many({"chat_id": chat_id})
+        return result.deleted_count
+
+    async def delete_by_message_id(self, chat_id: int, message_id: int) -> int:
+        """
+        Delete a specific message by chat_id and message_id.
+        
+        Args:
+            chat_id: Telegram chat ID
+            message_id: Telegram message ID
+        
+        Returns:
+            Number of messages deleted (0 or 1)
+        """
+        result = await self.collection.delete_many({
+            "chat_id": chat_id,
+            "message_id": message_id
+        })
+        return result.deleted_count
+
+    async def delete_by_topic_id(self, chat_id: int, topic_id: int) -> int:
+        """
+        Delete all messages from a specific topic in a chat.
+        
+        Args:
+            chat_id: Telegram chat ID
+            topic_id: Telegram topic ID
+        
+        Returns:
+            Number of messages deleted
+        """
+        result = await self.collection.delete_many({
+            "chat_id": chat_id,
+            "topic_id": topic_id
+        })
+        return result.deleted_count
+
+    async def count_messages(self, query: Optional[dict] = None) -> int:
+        """
+        Count messages matching a query.
+        
+        Args:
+            query: MongoDB query dict (default: {} for all messages)
+        
+        Returns:
+            Number of messages matching the query
+        """
+        if query is None:
+            query = {}
+        return await self.collection.count_documents(query)
+
+
