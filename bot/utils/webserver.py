@@ -77,7 +77,7 @@ async def ping_server():
                 # Ping the server
                 async with session.get(web_url) as response:
                     if response.status == 200:
-                        logger.info(f"✅ Ping successful: {web_url} (Status: {response.status})")
+                        logger.debug(f"✅ Ping successful: {web_url} (Status: {response.status})")
                     else:
                         logger.warning(f"⚠️ Ping returned status {response.status}: {web_url}")
                         
