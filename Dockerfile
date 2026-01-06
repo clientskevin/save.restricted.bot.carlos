@@ -2,9 +2,8 @@
 FROM python:3.11-slim AS base
 
 # Install required system packages
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends software-properties-common && \
-    add-apt-repository multiverse && \
+# Add non-free repository for unrar and install packages
+RUN echo "deb http://deb.debian.org/debian bookworm main contrib non-free" > /etc/apt/sources.list.d/non-free.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg git build-essential python3-dev unrar && \
     rm -rf /var/lib/apt/lists/*
