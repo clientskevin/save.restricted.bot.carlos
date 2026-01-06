@@ -15,7 +15,7 @@ async def addadmin(client: Client, message: Message):
             try:
                 user = await client.get_users(admin)
                 text += f" - {user.mention(style='md')} ({user.id})\n"
-            except:
+            except Exception as e:
                 text += f" - {admin}\n"
         await message.reply_text(f"Usage: /addadmin user_id\n\n{text}")
         return
@@ -29,7 +29,7 @@ async def addadmin(client: Client, message: Message):
 
     try:
         user = await client.get_users(user_id)
-    except:
+    except Exception as e:
         await message.reply_text("Invalid user ID")
         return
         

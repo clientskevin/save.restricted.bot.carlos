@@ -35,6 +35,7 @@ class MessagesDB(Core):
         media_url: Optional[str] = None,
         indexed: bool = False,
         notion_page_id: Optional[str] = None,
+        archive_files: Optional[dict] = None,
     ):
         """Create a new message record"""
         doc = {
@@ -50,6 +51,7 @@ class MessagesDB(Core):
             "media_url": media_url,
             "indexed": indexed,
             "notion_page_id": notion_page_id,
+            "archive_files": archive_files,  # Store {file_ids: [...], file_names: [...], archive_name: "..."}
             "created_at": datetime.now(),
         }
         return await super().create(doc)
@@ -58,12 +60,14 @@ class MessagesDB(Core):
         self,
         message: "types.Message",
         file_id: Optional[str] = None,
+        archive_files: Optional[dict] = None,
     ):
         """Create message record from Pyrogram message object
         
         Args:
             message: Pyrogram message object
             file_id: Notion file ID (stored in media_url field)
+            archive_files: Archive metadata dict with file_ids, file_names, archive_name
         """
         # Extract basic info
         message_id = message.id
@@ -113,7 +117,8 @@ class MessagesDB(Core):
             size=size,
             caption=caption,
             media_title=media_title,
-            media_url=file_id
+            media_url=file_id,
+            archive_files=archive_files
         )
 
     async def message_exists(self, message_id: int, chat_id: int) -> Optional[dict]:
@@ -137,6 +142,7 @@ class MessagesDB(Core):
         self,
         message: "types.Message",
         file_id: Optional[str] = None,
+        archive_files: Optional[dict] = None,
     ) -> tuple[Optional[str], bool]:
         """
         Get existing message or update if exists with indexed=False, otherwise create new.
@@ -144,6 +150,7 @@ class MessagesDB(Core):
         Args:
             message: Pyrogram message object
             file_id: Notion file ID (stored in media_url field)
+            archive_files: Archive metadata dict with file_ids, file_names, archive_name
         
         Returns:
             Tuple of (_id, should_index_to_notion)
@@ -212,6 +219,9 @@ class MessagesDB(Core):
             if file_id:
                 update_data["media_url"] = file_id
             
+            if archive_files:
+                update_data["archive_files"] = archive_files
+            
             await self.update_one(
                 {"_id": existing["_id"]},
                 update_data
@@ -220,7 +230,7 @@ class MessagesDB(Core):
             return existing["_id"], True
         
         # Message doesn't exist, create new
-        _id = await self.create_from_pyrogram(message, file_id)
+        _id = await self.create_from_pyrogram(message, file_id, archive_files)
         return _id, True
 
     async def get_unindexed(self):
@@ -241,7 +251,7 @@ class MessagesDB(Core):
         Returns:
             Number of messages deleted
         """
-        result = await self.collection.delete_many({})
+        result = await self.col.delete_many({})
         return result.deleted_count
 
     async def delete_by_chat_id(self, chat_id: int) -> int:
@@ -254,7 +264,7 @@ class MessagesDB(Core):
         Returns:
             Number of messages deleted
         """
-        result = await self.collection.delete_many({"chat_id": chat_id})
+        result = await self.col.delete_many({"chat_id": chat_id})
         return result.deleted_count
 
     async def delete_by_message_id(self, chat_id: int, message_id: int) -> int:
@@ -268,7 +278,7 @@ class MessagesDB(Core):
         Returns:
             Number of messages deleted (0 or 1)
         """
-        result = await self.collection.delete_many({
+        result = await self.col.delete_many({
             "chat_id": chat_id,
             "message_id": message_id
         })
@@ -285,7 +295,7 @@ class MessagesDB(Core):
         Returns:
             Number of messages deleted
         """
-        result = await self.collection.delete_many({
+        result = await self.col.delete_many({
             "chat_id": chat_id,
             "topic_id": topic_id
         })
@@ -303,6 +313,6 @@ class MessagesDB(Core):
         """
         if query is None:
             query = {}
-        return await self.collection.count_documents(query)
+        return await self.col.count_documents(query)
 
 

@@ -8,12 +8,13 @@ Description: Clean wrapper for Notion file upload API
 
 import mimetypes
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import requests
 from pydantic import BaseModel
 
 from bot.config import Config
+from bot.utils.archive_handler import cleanup_extracted_files, extract_archive
 
 if TYPE_CHECKING:
     from pyrogram import types
@@ -142,4 +143,88 @@ def upload_message_to_notion(
     
     # Upload to Notion
     return upload_file_to_notion(file_path, notion_token)
+
+
+class ArchiveUploadResult(BaseModel):
+    """Result of archive extraction and upload to Notion"""
+    file_ids: List[str]
+    file_names: List[str]
+    archive_name: str
+    total_files: int
+    success: bool = True
+
+
+def upload_archive_to_notion(
+    archive_path: str,
+    notion_token: Optional[str] = None,
+    max_files: int = 100,
+    max_total_size: int = 500 * 1024 * 1024  # 500 MB
+) -> ArchiveUploadResult:
+    """
+    Extract archive (.zip or .rar) and upload each file individually to Notion.
+    
+    Args:
+        archive_path: Path to the archive file
+        notion_token: Notion integration token (defaults to NOTION_TOKEN env var)
+        max_files: Maximum number of files to extract
+        max_total_size: Maximum total size of extracted files in bytes
+    
+    Returns:
+        ArchiveUploadResult with list of file IDs and metadata
+    
+    Raises:
+        NotionUploadError: If upload fails
+        ArchiveHandlerError: If extraction fails
+        FileNotFoundError: If archive doesn't exist
+    """
+    extract_dir = None
+    
+    try:
+        # Extract archive
+        print(f"📦 Extracting archive: {os.path.basename(archive_path)}")
+        extracted_files = extract_archive(
+            archive_path,
+            max_files=max_files,
+            max_total_size=max_total_size
+        )
+        
+        if not extracted_files:
+            raise NotionUploadError("Archive is empty or contains no files")
+        
+        # Get extraction directory from first file
+        extract_dir = os.path.dirname(extracted_files[0].path)
+        
+        print(f"📤 Uploading {len(extracted_files)} files to Notion...")
+        
+        # Upload each file
+        file_ids = []
+        file_names = []
+        
+        for idx, extracted_file in enumerate(extracted_files, 1):
+            try:
+                print(f"  [{idx}/{len(extracted_files)}] Uploading: {extracted_file.relative_path}")
+                result = upload_file_to_notion(extracted_file.path, notion_token)
+                file_ids.append(result.file_id)
+                file_names.append(extracted_file.relative_path)
+            except Exception as e:
+                print(f"  ⚠️  Failed to upload {extracted_file.relative_path}: {e}")
+                # Continue with other files
+                continue
+        
+        if not file_ids:
+            raise NotionUploadError("Failed to upload any files from archive")
+        
+        print(f"✅ Successfully uploaded {len(file_ids)}/{len(extracted_files)} files")
+        
+        return ArchiveUploadResult(
+            file_ids=file_ids,
+            file_names=file_names,
+            archive_name=os.path.basename(archive_path),
+            total_files=len(file_ids)
+        )
+    
+    finally:
+        # Clean up extracted files
+        if extract_dir:
+            cleanup_extracted_files(extract_dir)
 

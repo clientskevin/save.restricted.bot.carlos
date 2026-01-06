@@ -79,8 +79,17 @@ async def index_messages_to_notion():
             blocks.extend(notion.create_text_block(header))
             blocks.append(notion.create_divider())
             
-            # Add media file first if exists (use appropriate block type)
-            if msg.get("media_url"):  # This is the file_id
+            # Check if this is an archive file with multiple extracted files
+            if msg.get("archive_files"):
+                # Handle archive files - create blocks for each extracted file
+                archive_data = msg["archive_files"]
+                blocks.extend(notion.create_archive_blocks(
+                    file_ids=archive_data["file_ids"],
+                    file_names=archive_data["file_names"],
+                    archive_name=archive_data["archive_name"]
+                ))
+            elif msg.get("media_url"):
+                # Regular single file - use appropriate block type
                 blocks.append(notion.create_media_block(
                     file_id=msg["media_url"],
                     mime_type=msg.get("mime_type", "file")

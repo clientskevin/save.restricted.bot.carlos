@@ -193,3 +193,36 @@ class NotionPageCreator:
                 }
             })
         return blocks
+
+    def create_archive_blocks(
+        self,
+        file_ids: List[str],
+        file_names: List[str],
+        archive_name: str
+    ) -> List[Dict]:
+        """
+        Create blocks for files extracted from an archive.
+        
+        Args:
+            file_ids: List of Notion file IDs
+            file_names: List of original file names (relative paths in archive)
+            archive_name: Name of the original archive
+        
+        Returns:
+            List of blocks (heading + file blocks)
+        """
+        blocks = []
+        
+        # Add heading for archive
+        blocks.extend(self.create_heading(f"📦 Contents of {archive_name}", level=2))
+        blocks.append(self.create_divider())
+        
+        # Add each file as a separate block with its name
+        for file_id, file_name in zip(file_ids, file_names):
+            # Add file name as a small heading
+            blocks.extend(self.create_heading(f"📄 {file_name}", level=3))
+            
+            # Add the file block
+            blocks.append(self.create_media_block(file_id, "file", caption=file_name))
+            
+        return blocks

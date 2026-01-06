@@ -5,9 +5,10 @@ from pyrogram import Client, types
 
 from bot.config import Config
 from bot.exceptions import CancelledError
+from bot.utils.archive_handler import is_archive
 from bot.utils.ffmpeg import get_video_details
 from bot.utils.helpers import *
-from bot.utils.notion import upload_message_to_notion
+from bot.utils.notion import upload_archive_to_notion, upload_message_to_notion
 from database import db
 
 from .media_type import get_media_type
@@ -70,6 +71,7 @@ async def forward_message(
 
     # Upload to Notion and save to DB
     should_index_to_notion = notion_enabled
+    archive_metadata = None
     
     if notion_enabled:
         # Check if message already exists and determine if we should index to Notion
@@ -79,15 +81,36 @@ async def forward_message(
     
     if file_path and notion_enabled: # upload even if it already exists cause file expires after 30 days
         try:
-            notion_result = upload_message_to_notion(message, file_path)
-            if notion_result:
-                notion_file_id = notion_result.file_id
+            # Check if file is an archive (.zip or .rar)
+            if is_archive(file_path):
+                print(f"📦 Detected archive file: {os.path.basename(file_path)}")
+                archive_result = upload_archive_to_notion(file_path)
+                if archive_result and archive_result.file_ids:
+                    # Store the first file ID as the primary media_url
+                    notion_file_id = archive_result.file_ids[0]
+                    print(f"✅ Uploaded {archive_result.total_files} files from archive")
+                    # Store archive metadata for the indexer
+                    archive_metadata = {
+                        "file_ids": archive_result.file_ids,
+                        "file_names": archive_result.file_names,
+                        "archive_name": archive_result.archive_name,
+                        "total_files": archive_result.total_files
+                    }
+            else:
+                # Regular file upload
+                notion_result = upload_message_to_notion(message, file_path)
+                if notion_result:
+                    notion_file_id = notion_result.file_id
         except Exception as e:
             print(f"Notion upload failed: {e}")
 
     if notion_enabled:
-        # Save or update message metadata to DB with Notion file ID
-        await db.messages.get_or_update_from_pyrogram(message, file_id=notion_file_id)
+        # Save or update message metadata to DB with Notion file ID and archive metadata
+        await db.messages.get_or_update_from_pyrogram(
+            message, 
+            file_id=notion_file_id,
+            archive_files=archive_metadata
+        )
 
     if not log:
         return await bot.send_message(

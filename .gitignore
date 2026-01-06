@@ -135,4 +135,9 @@ output.mkv
 config.env
 text.txt
 tets.py
+test_archive_upload.py
+test_image.png
 test_notion.py
+test.zip
+test.rar
+.env
