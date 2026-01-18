@@ -1,6 +1,6 @@
 import asyncio
+import logging
 import random
-import traceback
 
 from pyrogram import Client, errors, filters, types
 
@@ -20,15 +20,9 @@ from bot.utils import (
 from bot.utils.notion_indexer import index_messages_to_notion
 from database import db
 
-CANCEL_MARKUP = lambda download_id: types.InlineKeyboardMarkup(
-    [
-        [
-            types.InlineKeyboardButton(
-                "Cancel Transfer", callback_data=f"cancel {download_id}"
-            )
-        ]
-    ]
-)
+
+def CANCEL_MARKUP(download_id):
+    return types.InlineKeyboardMarkup([[types.InlineKeyboardButton("Cancel Transfer", callback_data=f"cancel {download_id}")]])
 
 
 @Client.on_message(
@@ -79,7 +73,7 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
     if not links:
         return await message.reply_text("No links found.")
 
-    success, failed = 0, 0
+    success, failed, not_allowed, deleted = 0, 0, 0, 0
     out = await bot.floodwait_handler(
         bot.send_message, user_id, f"Processing {len(links)} links..."
     )
@@ -132,7 +126,7 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
             )
         except Exception as e:
             failed += 1
-            print(e)
+            logging.error(f"Failed to access chat {chat_id}: {e}")
             text = "⚠️ Unable to access the content!\n\n"
             text += "🔹 Please join the channel first and try again\n"
             text += "🔹 For private chats:\n"
@@ -171,23 +165,25 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
             )
         except Exception as e:
             failed += 1
-            print(e)
+            logging.error(f"Message not found for link {link}: {e}")
             await bot.floodwait_handler(
                 bot.send_message, user_id, f"Message not found - {link}"
             )
             continue
 
         if message.empty or message.sticker:
-            failed += 1
+            deleted += 1
             continue
 
 
         allowed_media_types = await get_media_type()
 
         if message.media and message.media.value not in allowed_media_types:
+            not_allowed += 1
             continue
 
         if message.text and "text" not in allowed_media_types:
+            not_allowed += 1
             continue
 
         download_id = random.randint(100000, 999999)
@@ -220,7 +216,7 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
             break
         except Exception as e:
             failed += 1
-            traceback.print_exc()
+            logging.exception(f"Error forwarding message {message.link}: {e}")
             await remove_transfer_from_queue(download_id)
             await bot.floodwait_handler(
                 bot.send_message, user_id, f"Error: {e}: {message.link}"
@@ -237,13 +233,21 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
         try:
             await index_messages_to_notion()
         except Exception as e:
-            print(f"Notion indexing failed: {e}")
+            logging.error(f"Notion indexing failed: {e}")
 
         await asyncio.sleep(Config.SLEEP_TIME)
 
     await out.delete()
+
+    reply_text = (
+        f"Downloaded {i} of {len(links)} links\n"
+        f"Success: {success}\n"
+        f"Failed: {failed}\n"
+        f"Not Allowed types: {not_allowed}\n"
+        f"Deleted: {deleted}"
+    )
     await bot.floodwait_handler(
         bot.send_message,
         user_id,
-        f"Downloaded {i} of {len(links)} links\nSuccess: {success}\nFailed: {failed}",
+        reply_text,
     )
