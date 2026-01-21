@@ -146,7 +146,7 @@ async def batch(bot: Client, message: Message):
         #     messages = sorted(messages, key=lambda x: x.id)
 
         if is_last_message_digit:
-            last_topic_id = last_message_id
+            last_topic_id = last_message_id + first_topic_id 
 
         messages = []
         total_messages = list(range(first_topic_id, last_topic_id + 1))
