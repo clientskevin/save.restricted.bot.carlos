@@ -36,6 +36,7 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
     user_message = message
     is_batch = kwargs.get("is_batch", False)
     notion_enabled = kwargs.get("notion_enabled", True)
+    link = None
 
     if not is_valid_link(message):
         return await message.reply_text("Invalid link.")
@@ -245,6 +246,7 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
         f"Failed: {failed}\n"
         f"Not Allowed types: {not_allowed}\n"
         f"Deleted: {deleted}"
+        f"\n\nLast link: {link}"
     )
     await bot.floodwait_handler(
         bot.send_message,
