@@ -52,10 +52,12 @@ async def forward_message(
     notion_file_id = None
 
     if message.text:
+        print("Indexing text message")
         log = await bot.send_message(
             Config.FILES_LOG, message.text, reply_markup=message.reply_markup
         )
     else:
+        print(f"Indexing media message: {message}")
         file_path = await download_media(bot, user_id, message)
         if file_path:
             log, file_path = await upload_media(  # pyright: ignore[reportGeneralTypeIssues]
@@ -70,14 +72,8 @@ async def forward_message(
             return 
 
     # Upload to Notion and save to DB
-    should_index_to_notion = notion_enabled
+
     archive_metadata = None
-    
-    if notion_enabled:
-        # Check if message already exists and determine if we should index to Notion
-        _, should_index_to_notion = await db.messages.get_or_update_from_pyrogram(
-            message, file_id=None
-        )
     
     if file_path and notion_enabled: # upload even if it already exists cause file expires after 30 days
         try:

@@ -172,7 +172,7 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
             )
             continue
 
-        if message.empty or message.sticker:
+        if message.empty or message.sticker or message.service:
             deleted += 1
             continue
 
