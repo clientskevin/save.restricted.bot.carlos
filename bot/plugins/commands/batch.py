@@ -111,6 +111,7 @@ async def batch(bot: Client, message: Message):
     if not (first_topic_id and last_topic_id):
         messages = []
         total_messages = list(range(first_message_id, last_message_id + 1))
+        logger.info(f"Fetching {len(total_messages)} messages from {first_chat_id}: from {first_message_id} to {last_message_id}")
         for i in range(0, len(total_messages), 200):
             try:
                 messages.extend(
@@ -150,6 +151,8 @@ async def batch(bot: Client, message: Message):
 
         messages = []
         total_messages = list(range(first_topic_id, last_topic_id + 1))
+
+        logger.info(f"Fetching {len(total_messages)} messages from {first_chat_id}: from {first_topic_id} to {last_topic_id}")
         for i in range(0, len(total_messages), 200):
             try:
                 messages.extend(

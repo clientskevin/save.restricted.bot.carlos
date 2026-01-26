@@ -12,7 +12,9 @@ from bot.utils.notion import upload_archive_to_notion, upload_message_to_notion
 from database import db
 
 from .media_type import get_media_type
+import logging
 
+logger = logging.getLogger(__name__)
 
 async def forward_message(
     bot: Client, app: Client, message: types.Message, user_id: int, notion_enabled: bool
@@ -52,13 +54,12 @@ async def forward_message(
     notion_file_id = None
 
     if message.text:
-        print("Indexing text message")
         log = await bot.send_message(
             Config.FILES_LOG, message.text, reply_markup=message.reply_markup
         )
     else:
-        print(f"Indexing media message: {message}")
         file_path = await download_media(bot, user_id, message)
+        logger.info(f"Downloaded media file: {file_path}: {message.link}")
         if file_path:
             log, file_path = await upload_media(  # pyright: ignore[reportGeneralTypeIssues]
                 user_id,

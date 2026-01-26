@@ -141,20 +141,6 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
                 break
             continue
 
-        # is_bot = chat.type == enums.ChatType.BOT
-        # is_user = chat.type == enums.ChatType.PRIVATE
-
-        # if not chat.has_protected_content and not is_bot and not is_user:
-        #     failed += 1
-        #     await bot.floodwait_handler(
-        #         bot.send_message,
-        #         user_id,
-        #         f"This chat doesn't have protected content - **{chat.title}**",
-        #     )
-        #     if is_batch:
-        #         break
-        #     continue
-
         if topic_id:
             message_ids = topic_id
         else:
@@ -211,7 +197,7 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
         )
 
         try:
-            res = await forward_message(bot, app, message, user_id, notion_enabled=notion_enabled)
+            await forward_message(bot, app, message, user_id, notion_enabled=notion_enabled)
         except CancelledError:
             await remove_transfer_from_queue(download_id)
             break
