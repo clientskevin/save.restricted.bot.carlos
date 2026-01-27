@@ -46,8 +46,8 @@ def is_archive(file_path: str) -> bool:
 def extract_archive(
     archive_path: str,
     extract_to: Optional[str] = None,
-    max_files: int = 100,
-    max_total_size: int = 500 * 1024 * 1024  # 500 MB default
+    max_files: int = 1000,
+    max_total_size: int = 5000 * 1024 * 1024  # 5000 MB default
 ) -> List[ExtractedFile]:
     """
     Extract archive file (.zip or .rar) to a directory.
