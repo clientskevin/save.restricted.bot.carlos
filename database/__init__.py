@@ -2,6 +2,7 @@ from bot.config import Config
 
 from .config import ConfigDB
 from .messages import MessagesDB
+from .notion_config import NotionConfigDB
 from .notion_mapping import NotionMappingDB
 from .transfers import TransfersDB
 from .user_channels import UserChannelDatabase
@@ -16,5 +17,6 @@ class Database:
         self.transfers = TransfersDB(Config.DATABASE_URL, Config.DATABASE_NAME)
         self.messages = MessagesDB(Config.DATABASE_URL, Config.DATABASE_NAME)
         self.notion_mapping = NotionMappingDB(Config.DATABASE_URL, Config.DATABASE_NAME)
+        self.notion_config = NotionConfigDB(Config.DATABASE_URL, Config.DATABASE_NAME)
 
 db = Database()

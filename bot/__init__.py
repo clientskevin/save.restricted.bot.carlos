@@ -1,13 +1,7 @@
-import os
-from contextlib import suppress
-
-# if os.name != "nt": 
-#     from uvloop import install
-#     install()
-
 import asyncio
 import logging
 import logging.config
+from contextlib import suppress
 from typing import Any, Iterable, List, Union
 
 import pyromod
@@ -17,6 +11,13 @@ from bot.config import Config
 from bot.utils import add_admin, set_commands
 from bot.utils.webserver import start_webserver
 from database import db
+
+# if os.name != "nt": 
+#     from uvloop import install
+#     install()
+
+
+
 
 # Get logging configurations
 
@@ -44,7 +45,7 @@ class User(Client):
     async def start(self, *args, **kwargs):
         try:
             await super().start(*args, **kwargs)
-        except Exception as e:
+        except Exception:
             user = await db.users.filter_document(
                 {"session.string": self.session_string}
             )
@@ -97,6 +98,12 @@ class Bot(Client):
 
         await add_admin(Config.OWNER_ID)
         await set_commands(self)
+
+        # Load Notion Parent Page ID from database
+        notion_config = await db.notion_config.get_page_id()
+        if notion_config:
+            Config.NOTION_PARENT_PAGE_ID = notion_config
+            logging.info(f"Loaded Notion Parent Page ID from DB: {Config.NOTION_PARENT_PAGE_ID}")
 
         clients_to_start = []
         for client in await db.users.filter_documents({}):
@@ -200,7 +207,7 @@ class Bot(Client):
         Returns:
         None
         """
-        key = kwargs.pop("key", None)
+        kwargs.pop("key", None)
         if isinstance(message, types.Message):
             await message.reply(*args, **kwargs)
         elif isinstance(message, types.CallbackQuery):

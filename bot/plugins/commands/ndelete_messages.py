@@ -38,7 +38,7 @@ async def ndelete_messages(client: Client, message: types.Message):
     """Handle /ndelete command to delete messages from database"""
     
     # Parse command arguments
-    args = message.text.split()[1:] if len(message.text.split()) > 1 else []
+    args = message.command[1:] if message.command and len(message.command) > 1 else []
     
     # Show help if no arguments
     if not args:
