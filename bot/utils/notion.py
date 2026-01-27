@@ -183,9 +183,7 @@ def upload_archive_to_notion(
         # Extract archive
         print(f"📦 Extracting archive: {os.path.basename(archive_path)}")
         extracted_files = extract_archive(
-            archive_path,
-            max_files=max_files,
-            max_total_size=max_total_size
+            archive_path
         )
         
         if not extracted_files:
