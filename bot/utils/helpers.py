@@ -32,9 +32,13 @@ async def set_commands(app: Client):
         types.BotCommand("help", "💡 Need assistance? Find help here"),
         types.BotCommand("settings", "⚙️ Manage your settings"),
         types.BotCommand("batch", "📦 Save an entire channel"),
+        types.BotCommand("nchange", "Change Notion page"),
+        types.BotCommand("nbatch", "Save an entire channel to Notion and Telegram"),
         types.BotCommand("account", "👤 Manage your Telegram account"),
         types.BotCommand("channels", "📢 Manage your channels like a pro"),
         types.BotCommand("cancel", "❌ Cancel an ongoing transfer"),
+        types.BotCommand("ndelete", "❌ Delete all Notion messages from the database"),
+        types.BotCommand("ndelete_pages", "❌ Delete all Notion pages from the database"),
     ]
     await app.set_bot_commands(commands, scope=types.BotCommandScopeAllPrivateChats())
 
