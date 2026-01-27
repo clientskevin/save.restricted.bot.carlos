@@ -134,3 +134,36 @@ async def ndelete_messages(client: Client, message: types.Message):
     except Exception as e:
         await message.reply_text(f"❌ Error: {str(e)}")
         print(f"Error in ndelete command: {e}")
+
+@Client.on_message(filters.command("ndelete_pages") & filters.private & filters.incoming)
+@check_admin
+async def ndelete_pages(bot: Client, message: types.Message):
+    """Handle /ndelete_pages command to delete all Notion page mappings from database"""
+    if not message.command:
+        return
+
+    try:
+        # Ask for confirmation first
+        if len(message.command) == 1:
+            count = await db.notion_mapping.count_documents({})
+            if count == 0:
+                return await message.reply_text("❌ No Notion page mappings found in the database.")
+                
+            confirm_text = (
+                f"⚠️ **WARNING**\n\n"
+                f"You are about to delete **{count}** Notion page mappings from the database.\n\n"
+                f"This will reset all chat/topic associations with Notion pages. "
+                f"The bot will create new pages for subsequent messages.\n\n"
+                f"Type `/ndelete_pages confirm` to proceed."
+            )
+            return await message.reply_text(confirm_text)
+
+        if len(message.command) > 1 and message.command[1].lower() == "confirm":
+            deleted_count = await db.notion_mapping.delete_many({})
+            await message.reply_text(f"✅ Deleted **{deleted_count}** Notion page mappings from the database.")
+        else:
+            await message.reply_text("❌ Invalid argument. Use `/ndelete_pages confirm` to delete all mappings.")
+            
+    except Exception as e:
+        await message.reply_text(f"❌ Error: {str(e)}")
+        print(f"Error in ndelete_pages command: {e}")
