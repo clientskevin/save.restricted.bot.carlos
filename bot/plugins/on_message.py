@@ -138,6 +138,7 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
 
             await bot.floodwait_handler(bot.send_message, user_id, text)
             if is_batch:
+                logging.info(f"Batch transfer cancelled for message {message.link}")
                 break
             continue
 
@@ -199,6 +200,7 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
         try:
             await forward_message(bot, app, message, user_id, notion_enabled=notion_enabled)
         except CancelledError:
+            logging.info(f"Transfer cancelled for message {message.link}")
             await remove_transfer_from_queue(download_id)
             break
         except Exception as e:
@@ -211,6 +213,7 @@ async def on_https_message(bot: Client, message: types.Message, **kwargs):
             continue
 
         if is_transfer_cancelled(message.download_id):
+            logging.info(f"Transfer cancelled for message {message.link}")
             break
 
         await remove_transfer_from_queue(download_id)
