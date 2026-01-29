@@ -232,7 +232,6 @@ def is_transfer_cancelled(download_id):
         Config.TRANSFERS.get(download_id, {}).get("status")
         == TransferStatus.CANCELLED.value
     ):
-        Config.TRANSFERS.pop(download_id)
         return True
 
 

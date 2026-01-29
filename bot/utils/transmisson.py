@@ -200,7 +200,8 @@ async def download_media(bot, user_id, message: types.Message):
     )
     await out.delete()
     if not file_path:
-        raise CancelledError
+        if is_transfer_cancelled(download_id):
+            raise CancelledError
     return file_path
 
 
@@ -271,7 +272,10 @@ async def upload_media(
     if thumbnail:
         os.remove(thumbnail)
     if not log:
-        raise CancelledError
+        if is_transfer_cancelled(message.download_id):
+            raise CancelledError
+        else:
+            raise Exception("Failed to upload message")
 
     log = await bot.get_messages(log.chat.id, log.id)
     return log, file_path
