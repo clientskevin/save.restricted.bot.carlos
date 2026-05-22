@@ -69,38 +69,59 @@ class NotionPageCreator:
         blocks: Optional[List[Dict]] = None
     ) -> str:
         """Create a Notion page, returns page_id"""
-        # Use provided parent, or fall back to default parent
-        parent_id = parent_page_id or self.default_parent_id
-        parent = {"page_id": parent_id}
-        
-        payload = {
-            "parent": parent,
-            "properties": {
-                "title": {
-                    "title": [{"text": {"content": title}}]
-                }
-            }
-        }
-        
-        if blocks:
-            payload["children"] = blocks
+        initial_blocks = blocks[:100] if blocks else []
+        payload = self._create_payload(title, parent_page_id, initial_blocks)
         
         try:
             response = requests.post(
-                f"{self.base_url}/pages",
-                headers=self.headers,
-                json=payload
+                f"{self.base_url}/pages", headers=self.headers, json=payload
             )
             response.raise_for_status()
-            return response.json()["id"]
-        except requests.RequestException as e:
-            error_msg = f"Failed to create Notion page: {str(e)}"
-            if hasattr(e, "response") and e.response is not None:
-                try:
-                    error_msg += f"\nResponse: {e.response.text}"
-                except Exception:
-                    pass
-            raise NotionPageError(error_msg) from e
+            page_id = response.json()["id"]
+            
+            if blocks and len(blocks) > 100:
+                self._append_block_chunks(page_id, blocks[100:])
+                
+            return page_id
+        except requests.RequestException as exception:
+            raise NotionPageError(self._format_error(exception)) from exception
+
+    def _create_payload(
+        self,
+        title: str,
+        parent_page_id: Optional[str],
+        initial_blocks: List[Dict]
+    ) -> Dict:
+        """Create Notion page payload"""
+        parent_id = parent_page_id or self.default_parent_id
+        payload = {
+            "parent": {"page_id": parent_id},
+            "properties": {"title": {"title": [{"text": {"content": title}}]}}
+        }
+        if initial_blocks:
+            payload["children"] = initial_blocks
+        return payload
+
+    def _append_block_chunks(self, block_id: str, blocks: List[Dict]) -> None:
+        """Append block children in chunks of 100 to avoid Notion API limit"""
+        for start_index in range(0, len(blocks), 100):
+            chunk = blocks[start_index:start_index + 100]
+            response = requests.patch(
+                f"{self.base_url}/blocks/{block_id}/children",
+                headers=self.headers,
+                json={"children": chunk}
+            )
+            response.raise_for_status()
+
+    def _format_error(self, exception: requests.RequestException) -> str:
+        """Format request exception with response body if available"""
+        error_msg = f"Failed to create Notion page: {str(exception)}"
+        if hasattr(exception, "response") and exception.response is not None:
+            try:
+                error_msg += f"\nResponse: {exception.response.text}"
+            except Exception:
+                pass
+        return error_msg
 
     def create_text_block(self, text: str) -> List[Dict]:
         """Create text paragraph block(s), automatically chunking if text exceeds limit"""
