@@ -180,9 +180,9 @@ async def batch(bot: Client, message: Message):
         return await out.edit(text)
 
     await out.delete()
-    text = "\n".join(valid_messages)
+    logger.info(f"Batching {len(valid_messages)} messages in chunks of 500")
 
-    user_message.text = text
-
-    logger.info(f"Batching {len(valid_messages)} messages")
-    await on_https_message(bot, user_message, is_batch=True, notion_enabled=notion_enabled)
+    for chunk_start in range(0, len(valid_messages), 500):
+        message_chunk = valid_messages[chunk_start:chunk_start + 500]
+        user_message.text = "\n".join(message_chunk)
+        await on_https_message(bot, user_message, is_batch=True, notion_enabled=notion_enabled)
