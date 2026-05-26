@@ -5,7 +5,8 @@ from bot.config import Config
 from bot.utils import (
     show_active_task,
     format_task_text,
-    make_task_markup
+    make_task_markup,
+    make_batch_menu
 )
 from database import db
 
@@ -21,21 +22,8 @@ async def batch(bot: Client, message: Message):
 
 async def show_batch_menu(message: Message, notion_enabled: bool):
     """Displays the interactive batch menu to the user"""
-    markup = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton("➕ Custom Batch", callback_data=f"bmenu_new_{notion_enabled}"),
-                InlineKeyboardButton("🔄 Sync Last Indexed", callback_data=f"bmenu_sync_{notion_enabled}"),
-            ],
-            [
-                InlineKeyboardButton("⚡ Active Task", callback_data="bmenu_active"),
-            ],
-            [
-                InlineKeyboardButton("📜 All Tasks", callback_data="bmenu_completed"),
-            ],
-        ]
-    )
-    await message.reply_text("📦 **Batch Transfer Manager**\n\nChoose an action below:", reply_markup=markup)
+    text, markup = make_batch_menu(notion_enabled)
+    await message.reply_text(text, reply_markup=markup)
 
 
 @Client.on_message(filters.command("batch_status") & filters.private & filters.incoming & filters.user(Config.OWNER_ID))

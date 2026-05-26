@@ -11,7 +11,8 @@ from bot.utils import (
     setup_custom_task,
     setup_sync_task,
     resolve_chat_id,
-    start_background_batch
+    start_background_batch,
+    make_batch_menu
 )
 from database import db
 
@@ -24,6 +25,7 @@ async def handle_new_batch(bot: Client, query: CallbackQuery):
 
     first_text = (
         "📊 **New Custom Batch**\n\n"
+        "This copies a specific range of messages from a chat.\n\n"
         "Forward/send the **first message link** from the chat you would like to batch-save.\n\n"
         "Example:\n`https://t.me/c/2114152609/1`\n\n"
         "Send `/cancel` to cancel ❌"
@@ -38,10 +40,11 @@ async def handle_new_batch(bot: Client, query: CallbackQuery):
 
     last_text = (
         "📊 **New Custom Batch**\n\n"
+        "Now, choose how far the copy task should go.\n\n"
         "Please send one of the following:\n\n"
-        "1️⃣ **The last message link** to define the end of the batch\n"
+        "1️⃣ **The last message link** to define where to stop\n"
         "Example: `https://t.me/c/2114152609/10`\n\n"
-        "2️⃣ **The number of messages** you want to batch-save\n"
+        "2️⃣ **The number of messages** you want to batch-save from the starting point\n"
         "Example: `10`\n\n"
         "Send `/cancel` to cancel ❌"
     )
@@ -81,6 +84,7 @@ async def handle_sync_batch(bot: Client, query: CallbackQuery):
     markup = InlineKeyboardMarkup(buttons)
     await query.message.edit_text(
         "🔄 **Sync Channel from Last Indexed**\n\n"
+        "This copies any new messages posted in a chat since your last batch copy.\n\n"
         "Please select the chat/channel you want to sync from the list of previously indexed chats:",
         reply_markup=markup
     )
@@ -112,21 +116,8 @@ async def handle_run_sync_batch(bot: Client, query: CallbackQuery):
 async def handle_bmenu_home(bot: Client, query: CallbackQuery):
     """Goes back to the batch menu"""
     notion_enabled = query.data.split("_")[-1] == "True"
-    markup = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton("➕ Custom Batch", callback_data=f"bmenu_new_{notion_enabled}"),
-                InlineKeyboardButton("🔄 Sync Last Indexed", callback_data=f"bmenu_sync_{notion_enabled}"),
-            ],
-            [
-                InlineKeyboardButton("⚡ Active Task", callback_data="bmenu_active"),
-            ],
-            [
-                InlineKeyboardButton("📜 All Tasks", callback_data="bmenu_completed"),
-            ],
-        ]
-    )
-    await query.message.edit_text("📦 **Batch Transfer Manager**\n\nChoose an action below:", reply_markup=markup)
+    text, markup = make_batch_menu(notion_enabled)
+    await query.message.edit_text(text, reply_markup=markup)
     await query.answer()
 
 

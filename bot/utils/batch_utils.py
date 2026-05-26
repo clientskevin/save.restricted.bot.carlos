@@ -14,6 +14,35 @@ logger = logging.getLogger(__name__)
 RUNNING_TASKS = set()
 
 
+def make_batch_menu(notion_enabled: bool) -> tuple[str, InlineKeyboardMarkup]:
+    """Generate the text and markup for the main batch menu"""
+    text = (
+        "📦 **Batch Transfer Manager**\n\n"
+        "This tool allows you to copy messages from channels or groups in bulk.\n\n"
+        "**Button Guide**:\n"
+        "- **Custom Batch**: Start a new copying task by specifying the start and end message links.\n\n"
+        "- **Sync Last Indexed**: Automatically scan and copy new messages from previously processed chats.\n\n"
+        "- **Active Task**: View status and manage the currently running copy task.\n\n"
+        "- **All Tasks**: View full task history to resume paused copy tasks or delete records.\n\n"
+        "Choose an action below:"
+    )
+    markup = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("➕ Custom Batch", callback_data=f"bmenu_new_{notion_enabled}"),
+                InlineKeyboardButton("🔄 Sync Last Indexed", callback_data=f"bmenu_sync_{notion_enabled}"),
+            ],
+            [
+                InlineKeyboardButton("⚡ Active Task", callback_data="bmenu_active"),
+            ],
+            [
+                InlineKeyboardButton("📜 All Tasks", callback_data="bmenu_completed"),
+            ],
+        ]
+    )
+    return text, markup
+
+
 def format_task_text(task: dict) -> str:
     """Format the task status into human readable text"""
     scanned_count = (task["current_message_id"] - task["first_message_id"] + 1) if task["status"] != "completed" else task["total_messages"]
@@ -43,6 +72,7 @@ def format_task_text(task: dict) -> str:
     text = (
         f"📦 **Task #{task['_id']}** | {status_emoji}{notion_tag}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"This card shows the progress of your copy task. Use the control buttons below to manage it.\n\n"
         f"**Chat**: {chat_title}\n"
         f"**Progress**: `{scanned_count}`/`{task['total_messages']}` (`{pct:.1f}%` - `{left_count}` left)\n"
         f"**Saved**: `{task['processed_count']}` messages\n"
@@ -366,7 +396,11 @@ async def show_active_task(bot: Client, chat_id: int, user_id: int, query = None
     """Fetch and display the currently active running batch task"""
     task = await db.batch_tasks.get_active_task(user_id)
     if not task:
-        text = "⚠️ No active task currently running."
+        text = (
+            "⚠️ **No active task currently running.**\n\n"
+            "Active tasks are bulk copy processes that are currently in progress. "
+            "You can start a new bulk copy via the main menu."
+        )
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back to Menu", callback_data="bmenu_home_False")]])
         if query:
             await query.message.edit_text(text, reply_markup=markup)
@@ -411,7 +445,11 @@ async def show_completed_tasks(bot: Client, chat_id: int, user_id: int, query = 
 
 def get_condensed_completed_text(tasks: list) -> str:
     """Generate condensed text for completed/inactive tasks"""
-    text = "📜 **Completed & Inactive Tasks**\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    text = (
+        "📜 **Completed & Inactive Tasks**\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Here is the history of your past copy tasks. Click any task ID button below to view its details, resume a paused copy, or delete it from history.\n\n"
+    )
     completed_tasks = [t for t in tasks if t["status"] != "running"]
     
     if not completed_tasks:
