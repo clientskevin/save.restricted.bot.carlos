@@ -19,6 +19,7 @@ def format_task_text(task: dict) -> str:
     scanned_count = (task["current_message_id"] - task["first_message_id"] + 1) if task["status"] != "completed" else task["total_messages"]
     scanned_count = max(0, min(scanned_count, task["total_messages"]))
     pct = (scanned_count / task["total_messages"]) * 100 if task["total_messages"] > 0 else 0
+    left_count = max(0, task["total_messages"] - scanned_count)
     chat_id = task["source_chat_id"]
     chat_title = task.get("source_chat_title", "Chat")
     chat_id_raw = str(chat_id).replace("-100", "")
@@ -43,11 +44,10 @@ def format_task_text(task: dict) -> str:
         f"📦 **Task #{task['_id']}** | {status_emoji}{notion_tag}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"**Chat**: {chat_title}\n"
-        f"**Progress**: `{scanned_count}`/`{task['total_messages']}` (`{pct:.1f}%`)\n"
+        f"**Progress**: `{scanned_count}`/`{task['total_messages']}` (`{pct:.1f}%` - `{left_count}` left)\n"
         f"**Saved**: `{task['processed_count']}` messages\n"
         f"**Started**: {started_at} ({running_since})\n"
-        f"**Current**: [Message Link]({msg_link})\n"
-        f"**Last**: [Message Link]({last_msg_link})\n\n"
+        f"**Links**: [Current]({msg_link}) | [Last]({last_msg_link})\n\n"
         f"ℹ️ __Empty, deleted, or unsupported messages in the range are skipped.__"
     )
     return text
