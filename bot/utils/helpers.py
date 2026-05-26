@@ -1,4 +1,7 @@
 import functools
+import logging
+
+logger = logging.getLogger(__name__)
 import math
 import os
 import random
@@ -32,8 +35,9 @@ async def set_commands(app: Client):
         types.BotCommand("help", "💡 Need assistance? Find help here"),
         types.BotCommand("settings", "⚙️ Manage your settings"),
         types.BotCommand("batch", "📦 Save an entire channel"),
-        types.BotCommand("nchange", "Change Notion page"),
         types.BotCommand("nbatch", "Save an entire channel to Notion and Telegram"),
+        types.BotCommand("batch_status", "📊 View and manage batch transfer progress"),
+        types.BotCommand("nchange", "Change Notion page"),
         types.BotCommand("account", "👤 Manage your Telegram account"),
         types.BotCommand("channels", "📢 Manage your channels like a pro"),
         types.BotCommand("cancel", "❌ Cancel an ongoing transfer"),
@@ -99,8 +103,11 @@ async def download_thumbnail(app: Client, thumbnail_id: int):
     try:
         thumbnail = await app.download_media(thumbnail_id)
     except Exception as e:
-        print(e)
-        os.remove(thumbnail)
+        logger.error(f"Error downloading thumbnail: {e}")
+        try:
+            os.remove(thumbnail)
+        except Exception:
+            pass
         thumbnail = None
     return thumbnail
 
@@ -171,7 +178,7 @@ async def progress_for_pyrogram(
                 disable_web_page_preview=True,
             )
         except Exception as e:
-            print(e)
+            logger.error(f"Error editing progress message: {e}")
 
 
 async def get_user_client(user_id) -> Client:

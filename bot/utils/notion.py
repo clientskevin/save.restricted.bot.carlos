@@ -6,9 +6,12 @@ Author: Maria Kevin
 Description: Clean wrapper for Notion file upload API
 """
 
+import logging
 import mimetypes
 import os
 from typing import TYPE_CHECKING, List, Optional
+
+logger = logging.getLogger(__name__)
 
 import requests
 from pydantic import BaseModel
@@ -181,7 +184,7 @@ def upload_archive_to_notion(
     
     try:
         # Extract archive
-        print(f"📦 Extracting archive: {os.path.basename(archive_path)}")
+        logger.info(f"Extracting archive: {os.path.basename(archive_path)}")
         extracted_files = extract_archive(
             archive_path
         )
@@ -192,7 +195,7 @@ def upload_archive_to_notion(
         # Get extraction directory from first file
         extract_dir = os.path.dirname(extracted_files[0].path)
         
-        print(f"📤 Uploading {len(extracted_files)} files to Notion...")
+        logger.info(f"Uploading {len(extracted_files)} files to Notion...")
         
         # Upload each file
         file_ids = []
@@ -200,19 +203,19 @@ def upload_archive_to_notion(
         
         for idx, extracted_file in enumerate(extracted_files, 1):
             try:
-                print(f"  [{idx}/{len(extracted_files)}] Uploading: {extracted_file.relative_path}")
+                logger.info(f"  [{idx}/{len(extracted_files)}] Uploading: {extracted_file.relative_path}")
                 result = upload_file_to_notion(extracted_file.path, notion_token)
                 file_ids.append(result.file_id)
                 file_names.append(extracted_file.relative_path)
             except Exception as e:
-                print(f"  ⚠️  Failed to upload {extracted_file.relative_path}: {e}")
+                logger.warning(f"  Failed to upload {extracted_file.relative_path}: {e}")
                 # Continue with other files
                 continue
         
         if not file_ids:
             raise NotionUploadError("Failed to upload any files from archive")
         
-        print(f"✅ Successfully uploaded {len(file_ids)}/{len(extracted_files)} files")
+        logger.info(f"Successfully uploaded {len(file_ids)}/{len(extracted_files)} files")
         
         return ArchiveUploadResult(
             file_ids=file_ids,

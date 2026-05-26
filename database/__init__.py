@@ -4,6 +4,7 @@ from .config import ConfigDB
 from .messages import MessagesDB
 from .notion_config import NotionConfigDB
 from .notion_mapping import NotionMappingDB
+from .batch_tasks import BatchTasksDB
 from .transfers import TransfersDB
 from .user_channels import UserChannelDatabase
 from .users import UserDatabase
@@ -18,5 +19,6 @@ class Database:
         self.messages = MessagesDB(Config.DATABASE_URL, Config.DATABASE_NAME)
         self.notion_mapping = NotionMappingDB(Config.DATABASE_URL, Config.DATABASE_NAME)
         self.notion_config = NotionConfigDB(Config.DATABASE_URL, Config.DATABASE_NAME)
+        self.batch_tasks = BatchTasksDB(Config.DATABASE_URL, Config.DATABASE_NAME)
 
 db = Database()

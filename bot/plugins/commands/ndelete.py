@@ -6,9 +6,12 @@ Author: Maria Kevin
 Description: Delete messages from Notion database with various filters
 """
 
+import logging
 from pyrogram import Client, filters, types
 
 from bot.utils import check_admin
+
+logger = logging.getLogger(__name__)
 from database import db
 
 HELP_TEXT = """
@@ -133,7 +136,7 @@ async def ndelete_messages(client: Client, message: types.Message):
         
     except Exception as e:
         await message.reply_text(f"❌ Error: {str(e)}")
-        print(f"Error in ndelete command: {e}")
+        logger.error(f"Error in ndelete command: {e}")
 
 @Client.on_message(filters.command("ndelete_pages") & filters.private & filters.incoming)
 @check_admin
@@ -166,4 +169,4 @@ async def ndelete_pages(bot: Client, message: types.Message):
             
     except Exception as e:
         await message.reply_text(f"❌ Error: {str(e)}")
-        print(f"Error in ndelete_pages command: {e}")
+        logger.error(f"Error in ndelete_pages command: {e}")

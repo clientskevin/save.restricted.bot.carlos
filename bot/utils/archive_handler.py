@@ -6,9 +6,12 @@ Author: Maria Kevin
 Description: Handle extraction and processing of archive files (.zip, .rar)
 """
 
+import logging
 import os
 import shutil
 import tempfile
+
+logger = logging.getLogger(__name__)
 import zipfile
 from pathlib import Path
 from typing import List, Optional
@@ -174,4 +177,4 @@ def cleanup_extracted_files(extract_dir: str):
         try:
             shutil.rmtree(extract_dir)
         except Exception as e:
-            print(f"Warning: Failed to cleanup {extract_dir}: {e}")
+            logger.warning(f"Failed to cleanup {extract_dir}: {e}")

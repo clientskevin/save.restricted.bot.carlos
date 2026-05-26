@@ -7,7 +7,10 @@ Description: Database class for storing message metadata
 """
 
 from datetime import datetime
+import logging
 from typing import TYPE_CHECKING, Optional
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pyrogram import types
@@ -166,11 +169,11 @@ class MessagesDB(Core):
         if existing:
             # If already indexed, don't re-index
             if existing.get("indexed", False):
-                print(f"⚠️ Message {chat_id}/{message_id} already indexed, skipping Notion upload")
+                logger.warning(f"Message {chat_id}/{message_id} already indexed, skipping Notion upload")
                 return existing["_id"], False
             
             # If not indexed, update the existing record
-            print(f"ℹ️ Message {chat_id}/{message_id} exists but not indexed, updating...")
+            logger.info(f"Message {chat_id}/{message_id} exists but not indexed, updating...")
             
             # Extract updated info from message
             channel_name = getattr(message.chat, "title", None) if message.chat else None

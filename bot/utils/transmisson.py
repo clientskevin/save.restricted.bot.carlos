@@ -52,25 +52,35 @@ async def forward_message(
 
     file_path = None
     notion_file_id = None
+    progress_msg = None
 
     if message.text:
         log = await bot.send_message(
             Config.FILES_LOG, message.text, reply_markup=message.reply_markup
         )
     else:
-        file_path = await download_media(bot, user_id, message)
-        logger.info(f"Downloaded media file: {file_path}: {message.link}")
-        if file_path:
-            log, file_path = await upload_media(  # pyright: ignore[reportGeneralTypeIssues]
-                user_id,
-                bot,
-                app,
-                file_path,
-                channel_id=Config.FILES_LOG,
-                message=message,
-            )
-        else:
-            return 
+        try:
+            progress_msg = await bot.send_message(user_id, f"Processing media ({message.index})...")
+            file_path = await download_media(bot, user_id, message, progress_msg)
+            logger.info(f"Downloaded media file: {file_path}: {message.link}")
+            if file_path:
+                log, file_path = await upload_media(  # pyright: ignore[reportGeneralTypeIssues]
+                    user_id,
+                    bot,
+                    app,
+                    file_path,
+                    channel_id=Config.FILES_LOG,
+                    message=message,
+                    progress_msg=progress_msg,
+                )
+            else:
+                return
+        finally:
+            if progress_msg:
+                try:
+                    await progress_msg.delete()
+                except Exception:
+                    pass
 
     # Upload to Notion and save to DB
 
@@ -80,12 +90,12 @@ async def forward_message(
         try:
             # Check if file is an archive (.zip or .rar)
             if is_archive(file_path):
-                print(f"📦 Detected archive file: {os.path.basename(file_path)}")
+                logger.info(f"Detected archive file: {os.path.basename(file_path)}")
                 archive_result = upload_archive_to_notion(file_path)
                 if archive_result and archive_result.file_ids:
                     # Store the first file ID as the primary media_url
                     notion_file_id = archive_result.file_ids[0]
-                    print(f"✅ Uploaded {archive_result.total_files} files from archive")
+                    logger.info(f"Uploaded {archive_result.total_files} files from archive")
                     # Store archive metadata for the indexer
                     archive_metadata = {
                         "file_ids": archive_result.file_ids,
@@ -99,7 +109,7 @@ async def forward_message(
                 if notion_result:
                     notion_file_id = notion_result.file_id
         except Exception as e:
-            print(f"Notion upload failed: {e}")
+            logger.error(f"Notion upload failed: {e}")
 
     if notion_enabled:
         # Save or update message metadata to DB with Notion file ID and archive metadata
@@ -167,22 +177,17 @@ async def forward_message(
         raise CancelledError
 
 
-async def download_media(bot, user_id, message: types.Message):
+async def download_media(bot, user_id, message: types.Message, progress_msg):
     download_id = message.download_id  # This is the download id of the message
 
     media = message.document or message.video or message.photo or message.audio
     if not media:
         return None
 
-    out = await bot.floodwait_handler(
-        bot.send_message, user_id, f"Downloading ({message.index})"
-    )
     start = time.time()
-
     filename = get_file_name(message)
 
     if not filename:
-        await out.delete()
         await bot.send_message(user_id, "No file name found.")
         return None
 
@@ -193,12 +198,11 @@ async def download_media(bot, user_id, message: types.Message):
         progress_args=(
             start,
             message,
-            out.edit,
+            progress_msg.edit,
             download_id,
             f"Downloading ({message.index})",
         ),
     )
-    await out.delete()
     if not file_path:
         if is_transfer_cancelled(download_id):
             raise CancelledError
@@ -212,8 +216,9 @@ async def upload_media(
     file_path: str,
     channel_id: int,
     message: types.Message,
+    progress_msg,
 ):
-    out = await bot.floodwait_handler(bot.send_message, user_id, "Starting upload...")
+    await bot.floodwait_handler(progress_msg.edit, "Starting upload...")
 
     upload_instance = app
     function = None
@@ -224,7 +229,6 @@ async def upload_media(
     function, kwargs = await get_upload_function(message, upload_instance, file_path)
 
     if not function:
-        await out.delete()
         return await bot.send_message(
             user_id, "Invalid file upload mode. Please select a valid file upload mode."
         )
@@ -252,11 +256,11 @@ async def upload_media(
     kwargs["progress_args"] = (
         time.time(),
         message,
-        out.edit,
+        progress_msg.edit,
         message.download_id,
         f"Uploading ({message.index})",
     )
-    print("upload start")
+    logger.info("upload start")
 
     caption = message.text or message.caption or ""
 
@@ -265,10 +269,9 @@ async def upload_media(
     if "text" in media_type:
         kwargs["caption"] = caption
 
-    await bot.floodwait_handler(out.edit, "Uploading...")
+    await bot.floodwait_handler(progress_msg.edit, "Uploading...")
 
     log = await bot.floodwait_handler(function, **kwargs)
-    await out.delete()
     if thumbnail:
         os.remove(thumbnail)
     if not log:
@@ -282,6 +285,14 @@ async def upload_media(
 
 
 async def resume_transfers(bot: Client):
+    # Reset stuck running batch tasks to paused state
+    try:
+        running_batches = await db.batch_tasks.filter_documents({"status": "running"})
+        for task in running_batches:
+            await db.batch_tasks.update_status(task["_id"], "paused")
+    except Exception as e:
+        logger.error(f"Error resetting batch tasks on startup: {e}")
+
     transfers = await db.transfers.filter_documents(
         {
             "status": {
@@ -305,7 +316,7 @@ async def resume_transfers(bot: Client):
         try:
             await bot.send_message(user_id, text, reply_markup=markup)
         except Exception as e:
-            print(e)
+            logger.error(e)
 
         await update_transfer(transfer["_id"], status=None)
 
@@ -373,7 +384,7 @@ async def get_topics_by_chat_id(client: Client, chat_id: int):
         async for topic in client.get_forum_topics(chat_id):
             topics[topic.title] = topic.id
     except Exception as e:
-        print(f"Error getting topics from chat {chat_id}: {e}")
+        logger.error(f"Error getting topics from chat {chat_id}: {e}")
 
     return topics
 
@@ -428,7 +439,7 @@ async def create_topic_if_not_exists(
     """
     # Check if topic already exists
     if topic_name in existing_topics:
-        print(
+        logger.info(
             f"Topic '{topic_name}' already exists with ID {existing_topics[topic_name]}"
         )
         return existing_topics[topic_name]
@@ -438,9 +449,9 @@ async def create_topic_if_not_exists(
         topic = await client.create_forum_topic(
             chat_id=target_chat_id, title=topic_name
         )
-        print(f"Created new topic '{topic_name}' with ID {topic.id}")
+        logger.info(f"Created new topic '{topic_name}' with ID {topic.id}")
         existing_topics[topic_name] = topic.id  # Update the cache
         return topic.id
     except Exception as e:
-        print(f"Error creating topic '{topic_name}': {e}")
+        logger.error(f"Error creating topic '{topic_name}': {e}")
         return None

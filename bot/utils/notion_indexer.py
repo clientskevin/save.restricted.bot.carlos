@@ -11,8 +11,11 @@ from bot.utils.formatters import (
     create_telegram_style_footer,
     create_telegram_style_header,
 )
+import logging
 from bot.utils.notion_pages import NotionPageCreator
 from database import db
+
+logger = logging.getLogger(__name__)
 
 
 async def index_messages_to_notion():
@@ -128,10 +131,10 @@ async def index_messages_to_notion():
                 notion_page_id=message_page_id
             )
             
-            print(f"✓ Indexed message {msg['chat_id']}/{msg['message_id']}")
+            logger.info(f"Indexed message {msg['chat_id']}/{msg['message_id']}")
             
         except Exception as e:
-            print(f"✗ Failed to index message {msg['chat_id']}/{msg['message_id']}: {e}")
+            logger.error(f"Failed to index message {msg['chat_id']}/{msg['message_id']}: {e}")
             continue
     
-    print(f"\n✓ Indexed {len(messages)} messages to Notion")
+    logger.info(f"Indexed {len(messages)} messages to Notion")

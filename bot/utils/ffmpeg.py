@@ -1,6 +1,9 @@
 import asyncio
+import logging
 import os
 import random
+
+logger = logging.getLogger(__name__)
 import datetime
 import ffmpeg
 
@@ -31,7 +34,7 @@ async def get_video_details(video_path):
         #video_info = ffmpeg.probe(video_path)
         video_info = await sync_to_async(ffmpeg.probe, video_path)
     except ffmpeg.Error as e:
-        print(e.stderr.decode())
+        logger.error(e.stderr.decode() if e.stderr else str(e))
         raise e
     for stream in video_info["streams"]:
         if stream["codec_type"] == "video":
@@ -72,7 +75,7 @@ async def create_thumbnail(inputpath):
             ]
         )
     except Exception as e:
-        print(e)
+        logger.error(f"Error creating thumbnail: {e}")
         return None
     if not os.path.exists(outputpath):
         return None
@@ -96,7 +99,7 @@ async def extract_media_languages(input_path):
     try:
         video_info = await sync_to_async(ffmpeg.probe, input_path)
     except ffmpeg.errors as e:
-        print(e.stderr.decode())
+        logger.error(e.stderr.decode() if e.stderr else str(e))
         raise e
 
     media_languages = {"video": [], "audio": [], "subtitles": []}
@@ -346,7 +349,7 @@ async def apply_metadata(file_path: str, user: dict):
     i_command = ["ffmpeg", "-i", file_path, "-c", "copy", "-y", "-map", "0"]
     command = i_command + command
     command.extend([output_path])
-    print(" ".join(command))
+    logger.info("Executing ffmpeg: " + " ".join(command))
     await asyncio_command_exec(command)
     os.remove(file_path)
     return output_path
