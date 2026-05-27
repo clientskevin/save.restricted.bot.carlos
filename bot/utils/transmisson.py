@@ -21,18 +21,19 @@ async def forward_message(
 ):
     valid_channels = []
 
-    user_channels = await db.user_channels.filter_documents({"user_id": user_id})
+    source_chat_id = message.chat.id
+    user_channels = await db.user_channels.filter_documents(
+        {"user_id": user_id, "source_channel_id": source_chat_id, "status": True}
+    )
     for channel in user_channels:
-        if not channel["status"]:
-            continue
-
+        dest_channel_id = channel["destination_channel_id"]
         try:
-            await bot.get_chat(channel["channel_id"])
+            await bot.get_chat(dest_channel_id)
         except Exception as e:
             await bot.floodwait_handler(
                 bot.send_message,
                 user_id,
-                f"Chat not found - {channel['channel_id']}",
+                f"Chat not found - {dest_channel_id}",
             )
             continue
 
@@ -41,7 +42,7 @@ async def forward_message(
     if not valid_channels:
         valid_channels.append(
             {
-                "channel_id": user_id,
+                "destination_channel_id": user_id,
                 "topic_id": None,
                 "paid_media": {
                     "status": False,
@@ -132,9 +133,10 @@ async def forward_message(
             channel["paid_media"]["stars"] if channel["paid_media"]["status"] else None
         )
         kwargs = {}
+        dest_channel_id = channel["destination_channel_id"]
 
         if not topic_id:
-            await handle_topic_thread(app, message, channel["channel_id"], kwargs)
+            await handle_topic_thread(app, message, dest_channel_id, kwargs)
         else:
             kwargs["message_thread_id"] = topic_id
 
@@ -146,7 +148,7 @@ async def forward_message(
                 media = types.InputMediaVideo(log.video.file_id)
             await bot.floodwait_handler(
                 bot.send_paid_media,
-                chat_id=channel["channel_id"],
+                chat_id=dest_channel_id,
                 stars_amount=paid_star,
                 media=[media],
                 caption=caption,
@@ -156,7 +158,7 @@ async def forward_message(
         elif message.media:
             r = await bot.floodwait_handler(
                 log.copy,
-                channel["channel_id"],
+                dest_channel_id,
                 caption=caption,
                 reply_markup=message.reply_markup,
                 **kwargs,
@@ -164,7 +166,7 @@ async def forward_message(
         else:
             await bot.floodwait_handler(
                 bot.send_message,
-                channel["channel_id"],
+                dest_channel_id,
                 caption,
                 reply_markup=message.reply_markup,
                 **kwargs,

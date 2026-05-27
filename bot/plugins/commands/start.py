@@ -11,7 +11,14 @@ async def start(bot: Client, message: Message):
     markup = InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
+                InlineKeyboardButton("📢 Channels", callback_data="channels"),
+                InlineKeyboardButton("📦 Batch", callback_data="bmenu_home_False"),
+            ],
+            [
+                InlineKeyboardButton("👤 My Account", callback_data="connected_account"),
+                InlineKeyboardButton("📋 Media Types", callback_data="mediatype_main"),
+            ],
+            [
                 InlineKeyboardButton("❓ Help", callback_data="help_1"),
             ],
         ]

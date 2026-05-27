@@ -18,30 +18,33 @@ async def channels(bot, message: CallbackQuery | Message):
 
     key = ["user_channels"]
 
-    text = "📺 **Your Channels**\n"
+    text = "📺 **Your Channel Pairs**\n"
+    text += "This lists the links between your Source (where files are taken) and Destination (where files are uploaded) channels.\n\n"
 
     buttons = []
 
     for i, channel in enumerate(user_channels):
         status = "✅ Active" if channel["status"] else "❌ Inactive"
-        text += f"- {channel['title']} {status}\n"
+        source_title = channel.get("source_title", "Unknown Source")
+        destination_title = channel.get("destination_title", "Unknown Dest")
+        text += f"- **{source_title}** ➡️ **{destination_title}** ({status})\n"
         buttons.append(
             [
                 InlineKeyboardButton(
-                    f"{channel['title']} {status}",
+                    f"{source_title} ➡️ {destination_title}",
                     callback_data=f"view_channel {channel['_id']}",
                 )
             ]
         )
 
     if not user_channels:
-        text += "\n- No channels added yet. 🕒\n"
+        text += "\n- No channel pairs added yet. 🕒\n"
 
     buttons.append(
-        [InlineKeyboardButton("➕ Add Channel", callback_data="add_channel")]
+        [InlineKeyboardButton("➕ Add Channel Pair", callback_data="add_channel")]
     )
 
-    buttons.append([InlineKeyboardButton("🔙 Back", callback_data="settings")])
+    buttons.append([InlineKeyboardButton("🔙 Back", callback_data="start")])
 
     await bot.reply(
         message,
@@ -52,15 +55,17 @@ async def channels(bot, message: CallbackQuery | Message):
 
 @Client.on_callback_query(filters.regex(r"^add_channel$"))
 async def add_channel(bot: Client, message: CallbackQuery):
+    user_id = message.from_user.id
+
+    # Step 1: Ask for Source Channel
     try:
-        ask = await message.message.chat.ask(
-            f"📥 Send me the channel ID you want to add or forward a message from the channel.\n\n"
-            f"💬 Send me the group ID or username directly to use a group.\n\n"
-            f"Example:\n"
-            f"Channel: `@ChannelUsername` or `-1001234567890`\n"
-            f"Group: `@GroupUsername` or `-1001234567890`\n\n"
-            f"Note: For topic groups, you'll need to provide the topic ID separately.\n\n"
-            f"/cancel to cancel",
+        ask_source = await message.message.chat.ask(
+            "📥 **Step 1 of 3: Source Channel**\n\n"
+            "Send me the ID, username, or forward a message from the **Source Channel** (where the files will be copied from).\n\n"
+            "**Examples**:\n"
+            "- Username: `@MySourceChannel`\n"
+            "- Chat ID: `-1001234567890`\n\n"
+            "Send `/cancel` to stop.",
         )
     except Exception as e:
         return await message.message.reply_text(
@@ -70,48 +75,112 @@ async def add_channel(bot: Client, message: CallbackQuery):
             ),
         )
 
-    if ask.text and ask.text == "/cancel":
-        return await ask.reply(
-            "❌ Operation cancelled",
+    if ask_source.text and ask_source.text.strip() == "/cancel":
+        return await ask_source.reply(
+            "❌ Cancelled.",
             reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("🔙 Back", callback_data="channels")]]
+                [[InlineKeyboardButton("🔙 Back to Channels", callback_data="channels")]]
             ),
         )
 
-    channel_id = ask
-
-    if channel_id.forward_from_chat:
-        channel_id = channel_id.forward_from_chat.id
-    else:
-        if channel_id.text:
-            if channel_id.text.replace("-", "").isdigit():
-                channel_id = int(channel_id.text)
-            else:
-                channel_id = channel_id.text.replace("@", "")
+    source_input = ask_source
+    if source_input.forward_from_chat:
+        source_id = source_input.forward_from_chat.id
+    elif source_input.text:
+        text_val = source_input.text.strip()
+        if text_val.replace("-", "").isdigit():
+            source_id = int(text_val)
         else:
-            return await ask.reply(
-                "⚠️ Invalid channel ID",
-                reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("🔙 Back", callback_data="channels")]]
-                ),
-            )
+            source_id = text_val.replace("@", "")
+    else:
+        return await ask_source.reply(
+            "⚠️ Invalid input. Please send a text ID/username or forward a message.",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("🔙 Back to Channels", callback_data="channels")]]
+            ),
+        )
 
     try:
-        channel = await bot.get_chat(channel_id)
+        source_chat = await bot.get_chat(source_id)
+        source_title = source_chat.title or "Source Chat"
+        source_channel_id = source_chat.id
     except Exception as e:
-        return await ask.reply(
-            "⚠️ Make sure the channel ID is correct and the bot is an admin in the channel",
+        return await ask_source.reply(
+            f"⚠️ Could not access the Source Channel.\n"
+            f"Make sure the bot is an Admin in the channel or a Member of the group.\n\n"
+            f"Error: {e}",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("🔙 Back to Channels", callback_data="channels")]]
+            ),
+        )
+
+    # Step 2: Ask for Destination Channel
+    try:
+        ask_dest = await message.message.chat.ask(
+            f"📤 **Step 2 of 3: Destination Channel**\n\n"
+            f"Selected Source: **{source_title}**\n\n"
+            "Now send the ID, username, or forward a message from the **Destination Channel** (where files will be uploaded to).\n\n"
+            "**Examples**:\n"
+            "- Username: `@MyDestinationChannel`\n"
+            "- Chat ID: `-1009876543210`\n\n"
+            "Send `/cancel` to stop.",
+        )
+    except Exception as e:
+        return await message.message.reply_text(
+            f"🚫 Error: {e}",
             reply_markup=InlineKeyboardMarkup(
                 [[InlineKeyboardButton("🔙 Back", callback_data="channels")]]
             ),
         )
 
-    title = channel.title
+    if ask_dest.text and ask_dest.text.strip() == "/cancel":
+        return await ask_dest.reply(
+            "❌ Cancelled.",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("🔙 Back to Channels", callback_data="channels")]]
+            ),
+        )
 
-    if channel.is_forum:
+    dest_input = ask_dest
+    if dest_input.forward_from_chat:
+        dest_id = dest_input.forward_from_chat.id
+    elif dest_input.text:
+        text_val = dest_input.text.strip()
+        if text_val.replace("-", "").isdigit():
+            dest_id = int(text_val)
+        else:
+            dest_id = text_val.replace("@", "")
+    else:
+        return await ask_dest.reply(
+            "⚠️ Invalid input. Please send a text ID/username or forward a message.",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("🔙 Back to Channels", callback_data="channels")]]
+            ),
+        )
+
+    try:
+        dest_chat = await bot.get_chat(dest_id)
+        destination_title = dest_chat.title or "Destination Chat"
+        destination_channel_id = dest_chat.id
+    except Exception as e:
+        return await ask_dest.reply(
+            f"⚠️ Could not access the Destination Channel.\n"
+            f"Make sure the bot is an Admin in the channel or a Member of the group.\n\n"
+            f"Error: {e}",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("🔙 Back to Channels", callback_data="channels")]]
+            ),
+        )
+
+    # Step 3: Ask for Topic ID if Destination is a forum
+    topic_id = None
+    if dest_chat.is_forum:
         try:
-            ask = await message.message.chat.ask(
-                "🗂️ If it's a forum, send me the topic ID of the Topic\n\n/skip if you want to auto create forums\n/cancel to cancel",
+            ask_topic = await message.message.chat.ask(
+                "🗂️ **Step 3 of 3: Forum Topic**\n\n"
+                "The destination is a forum. Send the **Topic ID** where the files should go.\n\n"
+                "Send `/skip` to let the bot auto-create topics/forums.\n"
+                "Send `/cancel` to stop.",
             )
         except Exception as e:
             return await message.message.reply_text(
@@ -121,35 +190,40 @@ async def add_channel(bot: Client, message: CallbackQuery):
                 ),
             )
 
-        if ask.text and ask.text == "/cancel":
-            return await ask.reply(
-                "❌ Operation cancelled",
+        if ask_topic.text and ask_topic.text.strip() == "/cancel":
+            return await ask_topic.reply(
+                "❌ Cancelled.",
                 reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("🔙 Back", callback_data="channels")]]
+                    [[InlineKeyboardButton("🔙 Back to Channels", callback_data="channels")]]
                 ),
             )
 
-        if ask.text and ask.text == "/skip":
-            topic_id = None
-        else:
-            topic_id = ask.text
-            if not topic_id.isdigit():
-                return await ask.reply(
-                    "⚠️ Invalid topic ID",
+        if ask_topic.text and ask_topic.text.strip() != "/skip":
+            topic_val = ask_topic.text.strip()
+            if not topic_val.isdigit():
+                return await ask_topic.reply(
+                    "⚠️ Invalid Topic ID. It must be a number.",
                     reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton("🔙 Back", callback_data="channels")]]
+                        [[InlineKeyboardButton("🔙 Back to Channels", callback_data="channels")]]
                     ),
                 )
-            topic_id = int(topic_id)
+            topic_id = int(topic_val)
 
-    else:
-        topic_id = None
-
-    await db.user_channels.create(title, message.from_user.id, channel_id, topic_id)
-    return await message.message.reply_text(
-        f"✅ Channel added successfully with title: {title}",
+    # Create mapping
+    await db.user_channels.create(
+        user_id=user_id,
+        source_channel_id=source_channel_id,
+        source_title=source_title,
+        destination_channel_id=destination_channel_id,
+        destination_title=destination_title,
+        topic_id=topic_id,
+    )
+    return await ask_dest.reply(
+        f"✅ **Channel pair added successfully!**\n\n"
+        f"📢 **Source**: {source_title}\n"
+        f"➡️ **Destination**: {destination_title}",
         reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔙 Back", callback_data="channels")]]
+            [[InlineKeyboardButton("🔙 Back to Channels", callback_data="channels")]]
         ),
     )
 
@@ -159,11 +233,17 @@ async def view_channel(_, message: CallbackQuery):
     _id = ObjectId(message.data.split()[1])
     channel = await db.user_channels.filter_document({"_id": ObjectId(_id)})
 
-    text = f"**Channel Details**\n\n"
-    text += f"📌 Title: {channel['title']}\n"
-    text += f"🔢 Channel ID: `{channel['channel_id']}`\n"
-    if channel["topic_id"]:
-        text += f"🗂️ Topic ID: `{channel['topic_id']}`\n"
+    text = f"⚙️ **Channel Pair Details**\n\n"
+    text += f"📢 **Source Channel** (from which files are read):\n"
+    text += f"├─ Title: **{channel.get('source_title', 'Unknown')}**\n"
+    text += f"└─ ID: `{channel.get('source_channel_id', 'Unknown')}`\n\n"
+
+    text += f"➡️ **Destination Channel** (where files are uploaded):\n"
+    text += f"├─ Title: **{channel.get('destination_title', 'Unknown')}**\n"
+    text += f"└─ ID: `{channel.get('destination_channel_id', 'Unknown')}`\n"
+    if channel.get("topic_id"):
+        text += f"├─ Topic ID: `{channel['topic_id']}`\n"
+    text += "\n"
 
     text += f"📊 Status: {'✅ Active' if channel['status'] else '❌ Inactive'}\n"
     text += f"💰 Paid Media: {'✅ Enabled' if channel['paid_media']['status'] else '❌ Disabled'}\n"
@@ -190,7 +270,7 @@ async def view_channel(_, message: CallbackQuery):
                     callback_data=f"edit_stars {_id}",
                 ),
             ],
-            [InlineKeyboardButton("🔙 Back", callback_data="channels")],
+            [InlineKeyboardButton("🔙 Back to Channels", callback_data="channels")],
         ]
     )
 

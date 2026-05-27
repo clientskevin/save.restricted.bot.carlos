@@ -38,6 +38,9 @@ def make_batch_menu(notion_enabled: bool) -> tuple[str, InlineKeyboardMarkup]:
             [
                 InlineKeyboardButton("📜 All Tasks", callback_data="bmenu_completed"),
             ],
+            [
+                InlineKeyboardButton("🔙 Back", callback_data="start"),
+            ]
         ]
     )
     return text, markup

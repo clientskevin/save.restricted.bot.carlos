@@ -40,7 +40,7 @@ async def connected_account(bot: Client, message: CallbackQuery | Message):
             [InlineKeyboardButton("🔐 Login", callback_data="connect_account")]
         )
 
-    buttons.append([InlineKeyboardButton("🔙 Back", callback_data="settings")])
+    buttons.append([InlineKeyboardButton("🔙 Back", callback_data="start")])
 
     await bot.reply(message, text, reply_markup=InlineKeyboardMarkup(buttons))
 
